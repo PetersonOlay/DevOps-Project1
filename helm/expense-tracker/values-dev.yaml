@@ -1,6 +1,6 @@
 image:
   repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-app-dev"
-  tag: "dev"
+  tag: "app-dev-20260711-194509"
 
 replicaCount: 1
 
