@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: expense-tracker-app-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  expense-tracker-app.json: |
+    {
+      "title": "expense-tracker application metrics",
+      "uid": "expense-tracker-app",
+      "schemaVersion": 39,
+      "version": 1,
+      "timezone": "browser",
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "HTTP request rate by route",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum by (route, method) (rate(http_requests_total[5m]))",
+              "legendFormat": "{{method}} {{route}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "HTTP error rate (5xx)",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m]))",
+              "legendFormat": "5xx errors/sec"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "HTTP request duration (p50 / p95 / p99)",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Node.js heap used",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "nodejs_heap_size_used_bytes",
+              "legendFormat": "heap used"
+            },
+            {
+              "expr": "nodejs_heap_size_total_bytes",
+              "legendFormat": "heap total"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Event loop lag (p99)",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "nodejs_eventloop_lag_p99_seconds",
+              "legendFormat": "event loop lag p99"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Process CPU usage",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "expr": "rate(process_cpu_user_seconds_total[5m])",
+              "legendFormat": "user"
+            },
+            {
+              "expr": "rate(process_cpu_system_seconds_total[5m])",
+              "legendFormat": "system"
+            }
+          ]
+        }
+      ]
+    }

@@ -1,10 +1,17 @@
 const express = require("express");
 const expensesRouter = require("./routes/expenses");
+const { register, requestMetricsMiddleware } = require("./metrics");
 
 const app = express();
 app.use(express.json());
+app.use(requestMetricsMiddleware);
 
 app.get("/healthz", (req, res) => res.status(200).json({ status: "ok" }));
+
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
 
 app.use(expensesRouter);
 
