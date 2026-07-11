@@ -61,6 +61,10 @@ output "ci_deployer_secret_access_key" {
   sensitive = true
 }
 
+output "app_namespace" {
+  value = local.app_namespace
+}
+
 output "update_kubeconfig_command" {
   value = "aws eks update-kubeconfig --name ${module.eks.cluster_name} --region ${var.region}"
 }

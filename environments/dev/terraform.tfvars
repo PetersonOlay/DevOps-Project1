@@ -29,7 +29,6 @@ app_s3_force_destroy = true
 
 secret_placeholder_name = "dev/app/placeholder"
 
-app_namespace            = "default"
 app_service_account_name = "app"
 
 db_name     = "expenses"

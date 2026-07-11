@@ -20,6 +20,12 @@ terraform output -raw ecr_repository_url
 `ci_deployer_secret_access_key` is only ever printed to your terminal — never commit it, and paste
 it straight into the matching GitHub Environment secret in the next step.
 
+This same `terraform apply` also creates the app's Kubernetes namespace
+(`kubernetes_namespace.app`, named `expense-tracker-<env>` — see the `app_namespace` output). It's
+created by the Terraform-applying principal (cluster-admin), not the CI deployer user — that
+user's EKS access is deliberately scoped to just that one namespace and can't create namespaces
+itself (a cluster-scoped operation), so don't pass `--create-namespace` to `helm`.
+
 ## 2. Create the matching GitHub Environments
 
 In the repo: Settings → Environments → New environment, one each named exactly `dev`, `stg`,
@@ -39,7 +45,7 @@ In the repo: Settings → Environments → New environment, one each named exact
 | `AWS_REGION` | `us-east-1` |
 | `ECR_REGISTRY` | that environment's `ecr_repository_url` output |
 | `EKS_CLUSTER` | `k8s-platform-<env>` |
-| `NAMESPACE` | `default` |
+| `NAMESPACE` | that environment's `app_namespace` output (`expense-tracker-<env>`) |
 
 Consider adding required-reviewer protection rules on the `stg`/`prod` GitHub Environments to gate
 who can trigger a deployment to them.

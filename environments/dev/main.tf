@@ -34,6 +34,17 @@ module "eks" {
   tags = local.common_tags
 }
 
+# Created via Terraform (the cluster-admin applying principal), not the
+# scoped ci_deployer IAM user — creating a Namespace is a cluster-scoped
+# operation that user's namespace-scoped EKS access deliberately can't do.
+resource "kubernetes_namespace" "app" {
+  metadata {
+    name = local.app_namespace
+  }
+
+  depends_on = [module.eks]
+}
+
 module "ecr" {
   source = "../../modules/ecr"
 
@@ -79,7 +90,7 @@ module "ci_deployer" {
   eks_cluster_arn    = module.eks.cluster_arn
   eks_cluster_name   = module.eks.cluster_name
 
-  kubernetes_namespace = var.app_namespace
+  kubernetes_namespace = local.app_namespace
 
   tags = local.common_tags
 }
@@ -162,7 +173,7 @@ module "irsa_app" {
 
   role_name                  = "${local.cluster_name}-app"
   oidc_provider_arn          = module.eks.oidc_provider_arn
-  namespace_service_accounts = ["${var.app_namespace}:${var.app_service_account_name}"]
+  namespace_service_accounts = ["${local.app_namespace}:${var.app_service_account_name}"]
 
   custom_policy_json = jsonencode({
     Version = "2012-10-17"

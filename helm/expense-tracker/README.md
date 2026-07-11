@@ -4,6 +4,16 @@ Deploys the expense-tracker API (Deployment, Service, ALB Ingress, ServiceAccoun
 annotation, ConfigMap, one-shot DB migration Job) to the EKS cluster provisioned by the Terraform
 project in this repo.
 
+## Namespace
+
+Each environment gets its own friendly, environment-scoped namespace — `expense-tracker-dev`,
+`expense-tracker-stg`, `expense-tracker-prod` — created by Terraform
+(`kubernetes_namespace.app` in `environments/<env>/main.tf`, see the `app_namespace` output), not
+by Helm. The CI deployer IAM user's EKS access is scoped to only that one namespace
+(`AmazonEKSEditPolicy` with a namespace-scoped `access_scope`) and can't create namespaces itself
+(a cluster-scoped operation), so never pass `--create-namespace` — the namespace must already
+exist before you `helm install`/`upgrade`.
+
 ## Values
 
 `values.yaml` holds chart defaults. `values-<env>.yaml` carries the environment-specific bits that
@@ -23,25 +33,25 @@ maps to `image.repository` (`ecr_repository_url`), `serviceAccount.roleArn` (`ir
 ```
 helm lint expense-tracker
 helm template expense-tracker -f values.yaml -f values-dev.yaml   # review rendered manifests
-helm install expense-tracker . -n default --create-namespace -f values.yaml -f values-dev.yaml
+helm install expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
 ```
 
 ## Upgrade
 
 ```
-helm upgrade expense-tracker . -n default -f values.yaml -f values-dev.yaml
+helm upgrade expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
 ```
 
 The migration Job (`expense-tracker-migrate`) has a fixed name and immutable spec — if you change
 the schema and need it to re-run on upgrade, delete it first:
 
 ```
-kubectl delete job expense-tracker-migrate -n default
-helm upgrade expense-tracker . -n default -f values.yaml -f values-dev.yaml
+kubectl delete job expense-tracker-migrate -n expense-tracker-dev
+helm upgrade expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
 ```
 
 ## Uninstall
 
 ```
-helm uninstall expense-tracker -n default
+helm uninstall expense-tracker -n expense-tracker-dev
 ```

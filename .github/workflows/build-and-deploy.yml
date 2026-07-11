@@ -105,7 +105,6 @@ jobs:
         run: |
           helm upgrade --install expense-tracker helm/expense-tracker \
             --namespace ${{ vars.NAMESPACE }} \
-            --create-namespace \
             -f helm/expense-tracker/values.yaml \
             -f helm/expense-tracker/values-${{ github.event.inputs.environment || 'dev' }}.yaml \
             --wait \

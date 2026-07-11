@@ -88,12 +88,6 @@ variable "secret_placeholder_name" {
   type = string
 }
 
-variable "app_namespace" {
-  description = "Kubernetes namespace the application runs in (used for IRSA trust policies)"
-  type        = string
-  default     = "default"
-}
-
 variable "app_service_account_name" {
   description = "Kubernetes service account name the application pods run as (used for IRSA trust policies)"
   type        = string
