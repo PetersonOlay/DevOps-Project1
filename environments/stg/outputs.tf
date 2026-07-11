@@ -28,12 +28,18 @@ output "app_secret_arn" {
 
 output "irsa_role_arns" {
   value = {
-    vpc_cni            = module.irsa_vpc_cni.iam_role_arn
-    ebs_csi            = module.irsa_ebs_csi.iam_role_arn
-    cluster_autoscaler = module.irsa_cluster_autoscaler.iam_role_arn
-    lb_controller      = module.irsa_lb_controller.iam_role_arn
-    app                = module.irsa_app.iam_role_arn
+    vpc_cni                  = module.irsa_vpc_cni.iam_role_arn
+    ebs_csi                  = module.irsa_ebs_csi.iam_role_arn
+    cluster_autoscaler       = module.irsa_cluster_autoscaler.iam_role_arn
+    lb_controller            = module.irsa_lb_controller.iam_role_arn
+    app                      = module.irsa_app.iam_role_arn
+    cloudwatch_observability = module.irsa_cloudwatch_observability.iam_role_arn
+    grafana_cloudwatch       = module.irsa_grafana_cloudwatch.iam_role_arn
   }
+}
+
+output "irsa_grafana_cloudwatch_role_arn" {
+  value = module.irsa_grafana_cloudwatch.iam_role_arn
 }
 
 output "irsa_app_role_arn" {

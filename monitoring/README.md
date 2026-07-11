@@ -13,11 +13,33 @@ configuration needed. Application metrics come from `app/expense-tracker`'s `/me
 the custom `expense-tracker-app-dashboard-configmap.yaml` dashboard (auto-imported by Grafana's
 sidecar, which watches for ConfigMaps labeled `grafana_dashboard: "1"`).
 
+CloudWatch is also wired in as a second Grafana datasource (`additionalDataSources` in the values
+file), so CloudWatch metrics and log groups (including the EKS control-plane/node-group log groups
+from `modules/cloudwatch` and the `amazon-cloudwatch-observability` EKS add-on) can be viewed
+alongside Prometheus data in the same Grafana instance.
+
 ## Prerequisite: a working StorageClass
 
 The cluster's only existing StorageClass (`gp2`) uses the legacy in-tree `kubernetes.io/aws-ebs`
 provisioner, which doesn't work on this EKS version anymore (only the CSI driver does — already
 installed as an EKS add-on). `storageclass-gp3.yaml` creates a working one.
+
+## Prerequisite: IRSA role for the CloudWatch datasource
+
+Unlike the rest of this stack, Grafana's CloudWatch access is Terraform-managed (same pattern as
+every other IRSA role in this repo — see `environments/dev/main.tf`,
+`module.irsa_grafana_cloudwatch`), since it's an IAM concern, not a Helm one:
+
+```
+cd environments/dev
+terraform apply
+terraform output -raw irsa_grafana_cloudwatch_role_arn
+```
+
+Paste that ARN into `monitoring/kube-prometheus-stack-values.yaml`'s
+`grafana.serviceAccount.annotations["eks.amazonaws.com/role-arn"]` before installing/upgrading —
+it must be set on the service account annotation *before* the Grafana pod starts, since IRSA
+credential injection happens via a mutating admission webhook at pod creation.
 
 ## Install (one time)
 
@@ -59,7 +81,10 @@ kubectl get secret -n monitoring kube-prometheus-stack-grafana \
 kubectl get ingress -n monitoring
 ```
 
-Username is `admin`.
+Username is `admin`. Once logged in, Connections → Data sources → CloudWatch → "Save & test" should
+report both the metrics and logs API queries succeeding — if it fails, check the Grafana pod's
+service account annotation and IRSA role trust condition
+(`system:serviceaccount:monitoring:kube-prometheus-stack-grafana`).
 
 ## Access Prometheus (no Ingress — port-forward)
 

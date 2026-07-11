@@ -222,6 +222,69 @@ module "irsa_cloudwatch_observability" {
   tags = local.common_tags
 }
 
+# Read-only CloudWatch access for Grafana's CloudWatch datasource (manually
+# helm-installed kube-prometheus-stack in the "monitoring" namespace — see
+# monitoring/README.md). Policy statements match AWS/Grafana Labs' documented
+# minimal CloudWatch datasource IAM policy.
+module "irsa_grafana_cloudwatch" {
+  source = "../../modules/irsa"
+
+  role_name                  = "${local.cluster_name}-grafana-cloudwatch"
+  oidc_provider_arn          = module.eks.oidc_provider_arn
+  namespace_service_accounts = ["monitoring:kube-prometheus-stack-grafana"]
+
+  custom_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowReadingMetricsFromCloudWatch"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:DescribeAlarmsForMetric",
+          "cloudwatch:DescribeAlarmHistory",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricData",
+          "cloudwatch:GetInsightRuleReport",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowReadingLogsFromCloudWatch"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:GetLogGroupFields",
+          "logs:StartQuery",
+          "logs:StopQuery",
+          "logs:GetQueryResults",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowReadingTagsInstancesRegionsFromEC2"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeTags",
+          "ec2:DescribeInstances",
+          "ec2:DescribeRegions",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "AllowReadingResourcesForTags"
+        Effect   = "Allow"
+        Action   = "tag:GetResources"
+        Resource = "*"
+      },
+    ]
+  })
+
+  tags = local.common_tags
+}
+
 # --- EKS add-ons (need node group Ready + IRSA roles) ---
 
 module "eks_addons" {
