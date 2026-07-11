@@ -13,11 +13,27 @@ spec:
   rules:
     - http:
         paths:
-          - path: /
+          # Most-specific paths first — the AWS Load Balancer Controller
+          # evaluates rules in the order listed here.
+          - path: /expenses
             pathType: Prefix
             backend:
               service:
                 name: {{ include "expense-tracker.name" . }}
                 port:
                   number: {{ .Values.service.port }}
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "expense-tracker.name" . }}
+                port:
+                  number: {{ .Values.service.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "expense-tracker.frontend.name" . }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
 {{- end }}

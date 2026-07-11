@@ -27,7 +27,7 @@ data "aws_iam_policy_document" "permissions" {
       "ecr:BatchGetImage",
       "ecr:GetDownloadUrlForLayer",
     ]
-    resources = [var.ecr_repository_arn]
+    resources = var.ecr_repository_arns
   }
 
   statement {

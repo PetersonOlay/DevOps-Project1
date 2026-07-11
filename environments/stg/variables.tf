@@ -74,6 +74,10 @@ variable "ecr_repository_name" {
   type = string
 }
 
+variable "frontend_ecr_repository_name" {
+  type = string
+}
+
 variable "app_s3_bucket_name" {
   description = "Globally unique name for the application S3 bucket"
   type        = string

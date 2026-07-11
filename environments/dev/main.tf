@@ -53,6 +53,14 @@ module "ecr" {
   tags = local.common_tags
 }
 
+module "frontend_ecr" {
+  source = "../../modules/ecr"
+
+  repository_name = var.frontend_ecr_repository_name
+
+  tags = local.common_tags
+}
+
 module "app_bucket" {
   source = "../../modules/s3-app-bucket"
 
@@ -86,9 +94,9 @@ module "ci_deployer" {
 
   user_name = "${local.cluster_name}-ci-deployer"
 
-  ecr_repository_arn = module.ecr.repository_arn
-  eks_cluster_arn    = module.eks.cluster_arn
-  eks_cluster_name   = module.eks.cluster_name
+  ecr_repository_arns = [module.ecr.repository_arn, module.frontend_ecr.repository_arn]
+  eks_cluster_arn     = module.eks.cluster_arn
+  eks_cluster_name    = module.eks.cluster_name
 
   kubernetes_namespace = local.app_namespace
 

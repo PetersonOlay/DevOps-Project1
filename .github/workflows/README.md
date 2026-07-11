@@ -1,9 +1,12 @@
 # CI/CD setup (manual, one-time)
 
-`build-and-deploy.yml` builds and pushes `app/expense-tracker`, bumps the image tag in
+`build-and-deploy.yml` builds and pushes both `app/expense-tracker` (backend) and
+`app/expense-tracker-frontend` (React UI), bumps both image tags in
 `helm/expense-tracker/values-<env>.yaml`, and runs `helm upgrade --install` against the target
-EKS cluster. It authenticates to AWS via a **static access-key IAM user, scoped per environment**
-(no OIDC).
+EKS cluster — one Helm release containing both services, which share a single ALB Ingress
+(`/expenses`, `/healthz` → backend; `/` → frontend, so the browser only ever talks to one origin,
+no CORS needed). It authenticates to AWS via a **static access-key IAM user, scoped per
+environment** (no OIDC).
 
 ## 1. Create each environment's CI deployer user
 
@@ -15,6 +18,7 @@ terraform apply
 terraform output -raw ci_deployer_access_key_id
 terraform output -raw ci_deployer_secret_access_key
 terraform output -raw ecr_repository_url
+terraform output -raw frontend_ecr_repository_url
 ```
 
 `ci_deployer_secret_access_key` is only ever printed to your terminal — never commit it, and paste
@@ -43,7 +47,8 @@ In the repo: Settings → Environments → New environment, one each named exact
 | Variable | Value |
 |---|---|
 | `AWS_REGION` | `us-east-1` |
-| `ECR_REGISTRY` | that environment's `ecr_repository_url` output |
+| `ECR_REGISTRY` | that environment's `ecr_repository_url` output (backend) |
+| `FRONTEND_ECR_REGISTRY` | that environment's `frontend_ecr_repository_url` output |
 | `EKS_CLUSTER` | `k8s-platform-<env>` |
 | `NAMESPACE` | that environment's `app_namespace` output (`expense-tracker-<env>`) |
 
@@ -52,10 +57,10 @@ who can trigger a deployment to them.
 
 ## 3. Fill in the Helm values placeholders
 
-The pipeline only ever bumps `image.tag`. Everything else in
-`helm/expense-tracker/values-<env>.yaml` (`image.repository`, `serviceAccount.roleArn`,
-`config.dbHost`, `config.dbSecretArn`, `config.s3Bucket`) must be filled in once from that
-environment's `terraform output` before the first deploy — see
+The pipeline only ever bumps `image.tag` and `frontend.image.tag`. Everything else in
+`helm/expense-tracker/values-<env>.yaml` (`image.repository`, `frontend.image.repository`,
+`serviceAccount.roleArn`, `config.dbHost`, `config.dbSecretArn`, `config.s3Bucket`) must be filled
+in once from that environment's `terraform output` before the first deploy — see
 `helm/expense-tracker/README.md`.
 
 ## Triggering

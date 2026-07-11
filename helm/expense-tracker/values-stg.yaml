@@ -16,3 +16,9 @@ config:
   s3Bucket: "REPLACE_WITH_STG_APP_S3_BUCKET_NAME"
   awsRegion: "us-east-1"
   appEnv: "stg"
+
+frontend:
+  image:
+    repository: "REPLACE_WITH_FRONTEND_ECR_REPOSITORY_URL"
+    tag: "stg"
+  replicaCount: 2

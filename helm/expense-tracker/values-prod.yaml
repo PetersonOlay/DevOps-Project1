@@ -24,3 +24,9 @@ resources:
   limits:
     cpu: 1000m
     memory: 512Mi
+
+frontend:
+  image:
+    repository: "REPLACE_WITH_FRONTEND_ECR_REPOSITORY_URL"
+    tag: "prod"
+  replicaCount: 3

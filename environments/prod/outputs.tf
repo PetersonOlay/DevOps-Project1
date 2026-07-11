@@ -14,6 +14,10 @@ output "ecr_repository_url" {
   value = module.ecr.repository_url
 }
 
+output "frontend_ecr_repository_url" {
+  value = module.frontend_ecr.repository_url
+}
+
 output "app_s3_bucket_name" {
   value = module.app_bucket.bucket_name
 }

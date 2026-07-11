@@ -16,6 +16,7 @@ override.tf.json
 # Node
 node_modules/
 npm-debug.log*
+dist/
 
 # OS
 .DS_Store

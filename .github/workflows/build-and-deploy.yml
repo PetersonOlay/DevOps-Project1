@@ -43,16 +43,18 @@ jobs:
     needs: [test]
     environment: ${{ github.event.inputs.environment || 'dev' }}
     outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
+      backend_tag: ${{ steps.tag.outputs.backend_tag }}
+      frontend_tag: ${{ steps.tag.outputs.frontend_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set image tag
+      - name: Set image tags
         id: tag
         run: |
           TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-          echo "image_tag=app-${{ github.event.inputs.environment || 'dev' }}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+          echo "backend_tag=app-${{ github.event.inputs.environment || 'dev' }}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+          echo "frontend_tag=web-${{ github.event.inputs.environment || 'dev' }}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -64,10 +66,15 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Build and push backend image
         run: |
-          docker build -t ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.image_tag }} app/expense-tracker/
-          docker push ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.image_tag }}
+          docker build -t ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }} app/expense-tracker/
+          docker push ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }}
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t ${{ vars.FRONTEND_ECR_REGISTRY }}:${{ steps.tag.outputs.frontend_tag }} app/expense-tracker-frontend/
+          docker push ${{ vars.FRONTEND_ECR_REGISTRY }}:${{ steps.tag.outputs.frontend_tag }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -87,18 +94,21 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER }} --region ${{ vars.AWS_REGION }}
 
-      - name: Update image tag in values file
+      - name: Update image tags in values file
         run: |
           VALUES_FILE=helm/expense-tracker/values-${{ github.event.inputs.environment || 'dev' }}.yaml
-          sed -i "0,/tag: .*/s/tag: .*/tag: \"${{ needs.build-and-push.outputs.image_tag }}\"/" "$VALUES_FILE"
+          yq -i '
+            .image.tag = "${{ needs.build-and-push.outputs.backend_tag }}" |
+            .frontend.image.tag = "${{ needs.build-and-push.outputs.frontend_tag }}"
+          ' "$VALUES_FILE"
 
-      - name: Commit updated tag back to repo
+      - name: Commit updated tags back to repo
         run: |
           VALUES_FILE=helm/expense-tracker/values-${{ github.event.inputs.environment || 'dev' }}.yaml
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add "$VALUES_FILE"
-          git commit -m "ci: update image tag to ${{ needs.build-and-push.outputs.image_tag }}" || true
+          git commit -m "ci: update tags - backend:${{ needs.build-and-push.outputs.backend_tag }} frontend:${{ needs.build-and-push.outputs.frontend_tag }}" || true
           git push
 
       - name: Install/Upgrade Helm release

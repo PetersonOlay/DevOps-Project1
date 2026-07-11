@@ -1,8 +1,15 @@
 # expense-tracker Helm chart
 
-Deploys the expense-tracker API (Deployment, Service, ALB Ingress, ServiceAccount with IRSA
-annotation, ConfigMap, one-shot DB migration Job) to the EKS cluster provisioned by the Terraform
-project in this repo.
+Deploys both expense-tracker services to the EKS cluster provisioned by the Terraform project in
+this repo, as one Helm release:
+- **backend** (Deployment, Service, ServiceAccount with IRSA annotation, ConfigMap, one-shot DB
+  migration Job) — the JSON API in `app/expense-tracker`.
+- **frontend** (Deployment, Service) — the React UI in `app/expense-tracker-frontend`, serving
+  static files via nginx.
+
+Both share a single ALB Ingress, split by path: `/expenses` and `/healthz` route to the backend
+Service, everything else (`/`) routes to the frontend Service. Same origin for both, so the
+frontend's `fetch("/expenses")` calls need no CORS configuration or API base URL.
 
 ## Namespace
 
@@ -24,9 +31,10 @@ placeholder in `values-<env>.yaml` before installing:
 terraform -chdir=../../environments/dev output
 ```
 
-maps to `image.repository` (`ecr_repository_url`), `serviceAccount.roleArn` (`irsa_app_role_arn`),
-`config.dbHost` (`rds_endpoint`), `config.dbSecretArn` (`rds_master_user_secret_arn`), and
-`config.s3Bucket` (`app_s3_bucket_name`).
+maps to `image.repository` (`ecr_repository_url`), `frontend.image.repository`
+(`frontend_ecr_repository_url`), `serviceAccount.roleArn` (`irsa_app_role_arn`), `config.dbHost`
+(`rds_endpoint`), `config.dbSecretArn` (`rds_master_user_secret_arn`), and `config.s3Bucket`
+(`app_s3_bucket_name`).
 
 ## Install
 
@@ -42,7 +50,9 @@ helm install expense-tracker . -n expense-tracker-dev -f values.yaml -f values-d
 helm upgrade expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
 ```
 
-The migration Job (`expense-tracker-migrate`) runs as a `post-install,post-upgrade` Helm hook with
+The migration Job (`expense-tracker-<env>-migrate`, e.g. `expense-tracker-dev-migrate` — resource
+names are suffixed with `config.appEnv` so they're identifiable across environments/namespaces at
+a glance) runs as a `post-install,post-upgrade` Helm hook with
 `hook-delete-policy: before-hook-creation` — Helm deletes the previous Job and creates a fresh one
 on every install/upgrade automatically (Job specs are immutable, so a plain in-place patch would
 fail once the image tag changes). No manual cleanup needed between deploys.

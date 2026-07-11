@@ -15,3 +15,9 @@ config:
   s3Bucket: "k8s-platform-app-dev-395675597879"
   awsRegion: "us-east-1"
   appEnv: "dev"
+
+frontend:
+  image:
+    repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-frontend-dev"
+    tag: "dev"
+  replicaCount: 1

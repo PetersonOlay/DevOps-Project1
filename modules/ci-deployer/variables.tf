@@ -3,9 +3,9 @@ variable "user_name" {
   type        = string
 }
 
-variable "ecr_repository_arn" {
-  description = "ARN of the environment's ECR repository, scopes the push permissions"
-  type        = string
+variable "ecr_repository_arns" {
+  description = "ARNs of the environment's ECR repositories (backend, frontend, ...), scopes the push permissions"
+  type        = list(string)
 }
 
 variable "eks_cluster_arn" {
