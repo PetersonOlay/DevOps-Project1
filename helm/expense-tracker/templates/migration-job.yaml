@@ -6,6 +6,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "expense-tracker.labels" . | nindent 4 }}
+  annotations:
+    # Job specs are immutable, so a plain "helm upgrade" (image tag changes
+    # every deploy) can't patch this in place. Running it as a post-install/
+    # post-upgrade hook makes Helm delete the previous Job and create a fresh
+    # one instead. Post- (not pre-) so the ServiceAccount/ConfigMap this Job
+    # depends on are already installed by the time it runs.
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   backoffLimit: 2
   template:

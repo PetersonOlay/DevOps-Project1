@@ -42,13 +42,10 @@ helm install expense-tracker . -n expense-tracker-dev -f values.yaml -f values-d
 helm upgrade expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
 ```
 
-The migration Job (`expense-tracker-migrate`) has a fixed name and immutable spec — if you change
-the schema and need it to re-run on upgrade, delete it first:
-
-```
-kubectl delete job expense-tracker-migrate -n expense-tracker-dev
-helm upgrade expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
-```
+The migration Job (`expense-tracker-migrate`) runs as a `post-install,post-upgrade` Helm hook with
+`hook-delete-policy: before-hook-creation` — Helm deletes the previous Job and creates a fresh one
+on every install/upgrade automatically (Job specs are immutable, so a plain in-place patch would
+fail once the image tag changes). No manual cleanup needed between deploys.
 
 ## Uninstall
 
