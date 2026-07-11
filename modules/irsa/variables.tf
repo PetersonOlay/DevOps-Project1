@@ -51,6 +51,12 @@ variable "custom_policy_json" {
   default     = null
 }
 
+variable "managed_policy_arns" {
+  description = "Existing AWS-managed (or customer-managed) IAM policy ARNs to attach, for cases with no attach_* flag in the upstream submodule (e.g. CloudWatchAgentServerPolicy)"
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

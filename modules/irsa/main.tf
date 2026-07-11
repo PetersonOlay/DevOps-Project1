@@ -19,9 +19,10 @@ module "irsa" {
   cluster_autoscaler_cluster_names       = var.cluster_autoscaler_cluster_names
   attach_load_balancer_controller_policy = var.attach_load_balancer_controller_policy
 
-  role_policy_arns = var.custom_policy_json != null ? {
-    custom = aws_iam_policy.custom[0].arn
-  } : {}
+  role_policy_arns = merge(
+    var.custom_policy_json != null ? { custom = aws_iam_policy.custom[0].arn } : {},
+    { for idx, arn in var.managed_policy_arns : "managed_${idx}" => arn }
+  )
 
   oidc_providers = {
     main = {

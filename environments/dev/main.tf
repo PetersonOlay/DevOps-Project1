@@ -189,14 +189,29 @@ module "irsa_app" {
   tags = local.common_tags
 }
 
+module "irsa_cloudwatch_observability" {
+  source = "../../modules/irsa"
+
+  role_name         = "${local.cluster_name}-cloudwatch-observability"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace_service_accounts = [
+    "amazon-cloudwatch:cloudwatch-agent",
+    "amazon-cloudwatch:fluent-bit",
+  ]
+  managed_policy_arns = ["arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"]
+
+  tags = local.common_tags
+}
+
 # --- EKS add-ons (need node group Ready + IRSA roles) ---
 
 module "eks_addons" {
   source = "../../modules/eks-addons"
 
-  cluster_name     = module.eks.cluster_name
-  vpc_cni_role_arn = module.irsa_vpc_cni.iam_role_arn
-  ebs_csi_role_arn = module.irsa_ebs_csi.iam_role_arn
+  cluster_name                      = module.eks.cluster_name
+  vpc_cni_role_arn                  = module.irsa_vpc_cni.iam_role_arn
+  ebs_csi_role_arn                  = module.irsa_ebs_csi.iam_role_arn
+  cloudwatch_observability_role_arn = module.irsa_cloudwatch_observability.iam_role_arn
 
   tags = local.common_tags
 
