@@ -1,0 +1,19 @@
+{
+  "name": "expense-tracker",
+  "version": "1.0.0",
+  "description": "Expense & receipt tracker: RDS Postgres for records, S3 for receipt files",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "migrate": "node src/migrate.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/client-secrets-manager": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.5"
+  }
+}

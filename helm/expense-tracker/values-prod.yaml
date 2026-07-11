@@ -1,0 +1,26 @@
+# Fill in from: terraform -chdir=../../environments/prod output
+image:
+  repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
+  tag: "prod"
+
+replicaCount: 3
+
+serviceAccount:
+  roleArn: "REPLACE_WITH_PROD_IRSA_APP_ROLE_ARN"
+
+config:
+  dbHost: "REPLACE_WITH_PROD_RDS_ENDPOINT"
+  dbPort: "5432"
+  dbName: "expenses"
+  dbSecretArn: "REPLACE_WITH_PROD_RDS_MASTER_USER_SECRET_ARN"
+  s3Bucket: "REPLACE_WITH_PROD_APP_S3_BUCKET_NAME"
+  awsRegion: "us-east-1"
+  appEnv: "prod"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi

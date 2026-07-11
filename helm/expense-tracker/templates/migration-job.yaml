@@ -1,0 +1,22 @@
+{{- if .Values.migrationJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "expense-tracker.name" . }}-migrate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "expense-tracker.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["node", "src/migrate.js"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "expense-tracker.name" . }}-config
+{{- end }}

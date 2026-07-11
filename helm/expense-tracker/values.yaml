@@ -1,0 +1,41 @@
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+serviceAccount:
+  name: app
+  roleArn: ""
+
+config:
+  dbHost: ""
+  dbPort: "5432"
+  dbName: "expenses"
+  dbSecretArn: ""
+  s3Bucket: ""
+  awsRegion: "us-east-1"
+  appEnv: "dev"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+service:
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+
+migrationJob:
+  enabled: true

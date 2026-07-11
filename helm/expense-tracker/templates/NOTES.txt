@@ -1,0 +1,14 @@
+expense-tracker deployed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Check rollout status:
+  kubectl rollout status deployment/{{ include "expense-tracker.name" . }} -n {{ .Release.Namespace }}
+
+{{- if .Values.migrationJob.enabled }}
+Check the migration Job:
+  kubectl get job {{ include "expense-tracker.name" . }}-migrate -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+Get the ALB address once the AWS Load Balancer Controller provisions it:
+  kubectl get ingress {{ include "expense-tracker.name" . }} -n {{ .Release.Namespace }}
+{{- end }}
