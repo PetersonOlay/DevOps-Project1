@@ -99,6 +99,48 @@ router.get("/expenses/:id", async (req, res, next) => {
   }
 });
 
+router.put("/expenses/:id", upload.single("receipt"), async (req, res, next) => {
+  try {
+    const { amount, category, description, expense_date: expenseDate } = req.body;
+    if (!amount || !category || !expenseDate) {
+      return res.status(400).json({ error: "amount, category, and expense_date are required" });
+    }
+
+    const pool = await getPool();
+    const existing = await pool.query("SELECT receipt_s3_key FROM expenses WHERE id = $1", [
+      req.params.id,
+    ]);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "not found" });
+    }
+
+    const previousReceiptKey = existing.rows[0].receipt_s3_key;
+    let receiptS3Key = previousReceiptKey;
+
+    if (req.file) {
+      receiptS3Key = receiptKey(req.params.id, req.file.originalname);
+      await uploadReceipt(receiptS3Key, req.file.buffer, req.file.mimetype);
+    }
+
+    const result = await pool.query(
+      `UPDATE expenses
+       SET amount = $1, category = $2, description = $3, expense_date = $4, receipt_s3_key = $5
+       WHERE id = $6
+       RETURNING id, amount, category, description, expense_date, receipt_s3_key, created_at`,
+      [amount, category, description || null, expenseDate, receiptS3Key, req.params.id]
+    );
+
+    if (req.file && previousReceiptKey && previousReceiptKey !== receiptS3Key) {
+      await deleteReceipt(previousReceiptKey);
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/expenses/:id", async (req, res, next) => {
   try {
     const pool = await getPool();
