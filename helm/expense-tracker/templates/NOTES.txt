@@ -1,3 +1,4 @@
+{{/* Post-install/upgrade message printed to the terminal by Helm. */}}
 expense-tracker deployed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
 
 Check rollout status:

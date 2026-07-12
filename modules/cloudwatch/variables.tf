@@ -1,3 +1,4 @@
+# Inputs for the CloudWatch log groups (see main.tf).
 variable "log_group_names" {
   description = "Map of logical name => CloudWatch log group name to create (e.g. node group, app logs)"
   type        = map(string)

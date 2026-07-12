@@ -1,3 +1,5 @@
+# Per-environment CI/CD identity: an IAM user scoped to push into one ECR
+# repo and manage Kubernetes resources in one namespace only.
 resource "aws_iam_user" "this" {
   name = var.user_name
   tags = var.tags

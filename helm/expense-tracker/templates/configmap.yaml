@@ -1,3 +1,4 @@
+{{/* Non-secret backend config, injected into the Deployment via envFrom. */}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

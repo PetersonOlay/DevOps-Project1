@@ -1,3 +1,4 @@
+# Connection details, including the ARN of the AWS-managed credentials secret.
 output "db_instance_endpoint" {
   description = "Connection endpoint (host:port)"
   value       = aws_db_instance.this.endpoint

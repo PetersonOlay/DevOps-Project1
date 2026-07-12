@@ -1,3 +1,4 @@
+{{/* ClusterIP Service in front of the frontend Deployment. */}}
 apiVersion: v1
 kind: Service
 metadata:

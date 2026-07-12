@@ -1,3 +1,4 @@
+# Chart metadata for the expense-tracker Helm release (backend + frontend).
 apiVersion: v2
 name: expense-tracker
 description: Expense & receipt tracker API (RDS Postgres + S3 receipts) on EKS

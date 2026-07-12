@@ -1,3 +1,4 @@
+# Names of every add-on this module installed.
 output "addon_names" {
   value = [
     aws_eks_addon.vpc_cni.addon_name,

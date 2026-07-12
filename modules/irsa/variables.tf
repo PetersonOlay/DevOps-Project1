@@ -1,3 +1,4 @@
+# Inputs for the IRSA role (see main.tf).
 variable "role_name" {
   description = "Name for the IAM role"
   type        = string

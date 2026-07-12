@@ -1,3 +1,5 @@
+# Custom Grafana dashboard, auto-imported by the chart's sidecar (it watches
+# for ConfigMaps labeled grafana_dashboard: "1").
 apiVersion: v1
 kind: ConfigMap
 metadata:

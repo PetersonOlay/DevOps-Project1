@@ -1,3 +1,4 @@
+# Inputs for the CI deployer IAM user (see main.tf).
 variable "user_name" {
   description = "Name for the CI deployer IAM user"
   type        = string

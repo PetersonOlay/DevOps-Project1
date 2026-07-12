@@ -1,3 +1,4 @@
+# Inputs for the placeholder secret (see main.tf).
 variable "secret_name" {
   type = string
 }

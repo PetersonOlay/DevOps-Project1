@@ -1,3 +1,5 @@
+# Helm values for prometheus-community/kube-prometheus-stack — manually
+# helm-installed (not Terraform-managed), see monitoring/README.md.
 prometheus:
   prometheusSpec:
     # Select ServiceMonitors cluster-wide, not just ones labeled with this

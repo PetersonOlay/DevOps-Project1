@@ -1,3 +1,5 @@
+{{/* ClusterIP Service in front of the backend Deployment; port named
+     "http" so the monitoring ServiceMonitor can target it by name. */}}
 apiVersion: v1
 kind: Service
 metadata:

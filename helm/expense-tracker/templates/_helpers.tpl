@@ -1,3 +1,4 @@
+{{/* Name/label helpers for the backend resources (suffixed with config.appEnv). */}}
 {{- define "expense-tracker.name" -}}
 {{- .Chart.Name -}}-{{- .Values.config.appEnv -}}
 {{- end -}}
@@ -14,6 +15,8 @@ app: {{ include "expense-tracker.name" . }}
 app: {{ include "expense-tracker.name" . }}
 {{- end -}}
 
+{{/* Same, but for the frontend resources — kept separate so their selector
+     labels never collide with the backend's. */}}
 {{- define "expense-tracker.frontend.name" -}}
 {{- .Chart.Name -}}-{{- .Values.config.appEnv -}}-frontend
 {{- end -}}

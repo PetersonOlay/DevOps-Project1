@@ -1,3 +1,6 @@
+# EKS-managed add-ons, created after the cluster + node group (and, for
+# vpc-cni/ebs-csi, their IRSA roles) already exist — see environments/*/main.tf
+# for why these can't be set inline on the eks module itself (OIDC/IRSA cycle).
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name                = var.cluster_name
   addon_name                  = "vpc-cni"

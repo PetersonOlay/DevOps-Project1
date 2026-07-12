@@ -1,3 +1,4 @@
+# Inputs for the VPC (see main.tf).
 variable "name" {
   description = "Name prefix for the VPC and its resources"
   type        = string

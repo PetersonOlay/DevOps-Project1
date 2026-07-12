@@ -1,3 +1,4 @@
+# Inputs for the EKS add-ons (see main.tf).
 variable "cluster_name" {
   type = string
 }

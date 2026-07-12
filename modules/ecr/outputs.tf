@@ -1,3 +1,4 @@
+# Repository identifiers used by the CI pipeline and modules/ci-deployer.
 output "repository_url" {
   value = aws_ecr_repository.this.repository_url
 }

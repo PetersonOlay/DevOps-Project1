@@ -1,3 +1,5 @@
+# Thin wrapper around terraform-aws-modules/eks/aws: cluster + managed node
+# group only (no add-ons — see modules/eks-addons for why they're separate).
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"

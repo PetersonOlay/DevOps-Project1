@@ -1,3 +1,5 @@
+{{/* Single ALB shared by both services, split by path so there's one
+     origin and no CORS config needed on the frontend. */}}
 {{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

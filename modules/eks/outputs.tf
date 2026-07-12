@@ -1,3 +1,4 @@
+# Cluster identifiers/endpoints consumed by add-ons, IRSA, Helm, and CI/CD.
 output "cluster_name" {
   value = module.eks.cluster_name
 }

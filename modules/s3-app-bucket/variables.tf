@@ -1,3 +1,4 @@
+# Inputs for the app S3 bucket (see main.tf).
 variable "bucket_name" {
   description = "Globally unique S3 bucket name (include account ID/env to ensure uniqueness)"
   type        = string

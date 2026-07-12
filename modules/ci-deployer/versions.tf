@@ -1,3 +1,4 @@
+# Provider version constraints for this module.
 terraform {
   required_version = ">= 1.5.0"
 

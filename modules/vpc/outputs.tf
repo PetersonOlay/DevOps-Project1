@@ -1,3 +1,4 @@
+# VPC/subnet identifiers consumed by the eks and rds modules.
 output "vpc_id" {
   value = module.vpc.vpc_id
 }

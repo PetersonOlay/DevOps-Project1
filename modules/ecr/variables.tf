@@ -1,3 +1,4 @@
+# Inputs for the ECR repository (see main.tf).
 variable "repository_name" {
   type = string
 }

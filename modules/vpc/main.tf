@@ -1,3 +1,5 @@
+# Thin wrapper around terraform-aws-modules/vpc/aws: public + private
+# subnets across 2 AZs, NAT gateway strategy driven by var.single_nat_gateway.
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.8"

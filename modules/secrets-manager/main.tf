@@ -1,3 +1,5 @@
+# Placeholder secret the app team fills in by hand; Terraform ignores drift
+# on the value after creation so it doesn't clobber real edits.
 resource "aws_secretsmanager_secret" "this" {
   name                    = var.secret_name
   recovery_window_in_days = var.recovery_window_in_days

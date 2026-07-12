@@ -1,3 +1,6 @@
+# Generic IRSA role: one Kubernetes service account -> one scoped IAM role,
+# via built-in policies (attach_* flags), an AWS-managed policy ARN, or a
+# custom inline policy document.
 resource "aws_iam_policy" "custom" {
   count = var.custom_policy_json != null ? 1 : 0
 
