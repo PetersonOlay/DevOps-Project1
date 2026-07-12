@@ -2,7 +2,7 @@
 # frontend.image.tag are bumped automatically by the CI pipeline.
 image:
   repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-app-dev"
-  tag: "app-dev-20260712-184803"
+  tag: "app-dev-20260712-190338"
 replicaCount: 1
 serviceAccount:
   roleArn: "arn:aws:iam::395675597879:role/k8s-platform-dev-app"
@@ -17,5 +17,5 @@ config:
 frontend:
   image:
     repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-frontend-dev"
-    tag: "web-dev-20260712-184803"
+    tag: "web-dev-20260712-190338"
   replicaCount: 1
