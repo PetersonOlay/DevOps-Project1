@@ -1,3 +1,4 @@
+# Inputs for the RDS instance (see main.tf).
 variable "identifier" {
   description = "RDS instance identifier"
   type        = string
@@ -28,6 +29,12 @@ variable "instance_class" {
 
 variable "allocated_storage" {
   type = number
+}
+
+variable "max_allocated_storage" {
+  description = "Ceiling RDS can auto-grow allocated_storage to as usage approaches the current limit (RDS storage autoscaling). 0 disables it."
+  type        = number
+  default     = 0
 }
 
 variable "db_name" {

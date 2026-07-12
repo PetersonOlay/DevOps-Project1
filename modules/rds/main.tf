@@ -1,3 +1,6 @@
+# RDS Postgres instance, private subnet group, and a security group scoped
+# to the EKS node/pod security group only. Master password is AWS-managed
+# (manage_master_user_password) so Terraform never sees or stores it.
 resource "aws_db_subnet_group" "this" {
   name       = "${var.identifier}-subnet-group"
   subnet_ids = var.subnet_ids
@@ -43,6 +46,7 @@ resource "aws_db_instance" "this" {
   instance_class = var.instance_class
 
   allocated_storage      = var.allocated_storage
+  max_allocated_storage  = var.max_allocated_storage
   storage_encrypted      = true
   db_name                = var.db_name
   username               = var.username

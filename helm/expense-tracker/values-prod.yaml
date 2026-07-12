@@ -1,3 +1,5 @@
+# prod-environment overrides, layered on top of values.yaml. Fill in every
+# REPLACE_WITH_* placeholder from Terraform outputs before the first deploy.
 # Fill in from: terraform -chdir=../../environments/prod output
 image:
   repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
@@ -25,8 +27,19 @@ resources:
     cpu: 1000m
     memory: 512Mi
 
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
 frontend:
   image:
     repository: "REPLACE_WITH_FRONTEND_ECR_REPOSITORY_URL"
     tag: "prod"
   replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70

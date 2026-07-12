@@ -1,3 +1,6 @@
+# stg-environment overrides, layered on top of values.yaml. Same
+# REPLACE_WITH_* convention as values-prod.yaml — fill in from Terraform
+# outputs before the first deploy.
 # Fill in from: terraform -chdir=../../environments/stg output
 image:
   repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
@@ -17,8 +20,19 @@ config:
   awsRegion: "us-east-1"
   appEnv: "stg"
 
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
 frontend:
   image:
     repository: "REPLACE_WITH_FRONTEND_ECR_REPOSITORY_URL"
     tag: "stg"
   replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70

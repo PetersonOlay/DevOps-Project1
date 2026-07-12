@@ -117,6 +117,7 @@ module "rds" {
 
   instance_class          = var.rds_instance_class
   allocated_storage       = var.rds_allocated_storage
+  max_allocated_storage   = var.rds_max_allocated_storage
   multi_az                = var.rds_multi_az
   backup_retention_period = var.rds_backup_retention_days
   deletion_protection     = var.rds_deletion_protection

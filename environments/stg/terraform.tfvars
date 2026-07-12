@@ -37,6 +37,7 @@ db_username = "app_admin"
 
 rds_instance_class        = "db.t3.small"
 rds_allocated_storage     = 20
+rds_max_allocated_storage = 50
 rds_multi_az              = false
 rds_backup_retention_days = 3
 rds_deletion_protection   = false

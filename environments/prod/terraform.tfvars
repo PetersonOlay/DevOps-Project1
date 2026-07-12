@@ -37,6 +37,7 @@ db_username = "app_admin"
 
 rds_instance_class        = "db.r6g.large"
 rds_allocated_storage     = 100
+rds_max_allocated_storage = 500
 rds_multi_az              = true
 rds_backup_retention_days = 14
 rds_deletion_protection   = true

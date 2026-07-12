@@ -1,7 +1,7 @@
-# expense-tracker on AWS EKS
+# Expense-Tracker on AWS EKS
 
 A small expense & receipt tracking platform running on Amazon EKS, built to demonstrate a complete
-Terraform → Kubernetes → CI/CD → observability workflow rather than to be a big application:
+Terraform → Kubernetes → CI/CD → observability workflow for a fully automated web application:
 
 - **Infrastructure:** multi-AZ Amazon EKS 1.36 clusters (one per environment) provisioned by
   Terraform, with a dedicated VPC, managed node group, and IRSA for every AWS-facing workload
@@ -55,6 +55,21 @@ Terraform → Kubernetes → CI/CD → observability workflow rather than to be 
 
 ## Architecture
 
+This is a 3-tier application, split across two tools by design — not a gap, just where each tier
+is deployed from:
+
+| Tier | What | Deployed by |
+|---|---|---|
+| Presentation | `app/expense-tracker-frontend` (React + Vite, nginx-served) | Helm (`helm/expense-tracker`) |
+| Application | `app/expense-tracker` (Node.js + Express) | Helm (`helm/expense-tracker`) |
+| Data | RDS PostgreSQL | Terraform (`modules/rds`) |
+
+RDS was deliberately kept as a managed service rather than a self-hosted `StatefulSet` in the
+cluster — it gives AWS-managed backups, patching, and (in prod) Multi-AZ failover for free, and
+the strongest drift-detection story (`terraform plan` diffs the actual `aws_db_instance` resource
+attribute-by-attribute). Self-hosting Postgres in Kubernetes would mean owning all of that
+operationally, for no scaling benefit this app actually needs.
+
 ### Network
 
 - VPC per environment, `10.0.0.0/16` (dev) / `10.1.0.0/16` (stg) / `10.2.0.0/16` (prod), 2 AZs,
@@ -73,6 +88,13 @@ Terraform → Kubernetes → CI/CD → observability workflow rather than to be 
   `kube-system` runs cluster add-ons; `monitoring` runs Prometheus/Grafana.
 - The app's namespace is created by Terraform (`kubernetes_namespace.app`), not by Helm — see
   [Security](#security) for why.
+- **Scaling**: three independent layers. Cluster Autoscaler adds/removes EC2 nodes as pod demand
+  changes; a `HorizontalPodAutoscaler` per service (backend/frontend, CPU-based, disabled in dev,
+  enabled in stg/prod — `helm/expense-tracker/templates/hpa.yaml` /
+  `frontend-hpa.yaml`) adds/removes pod replicas within the node group's capacity; the ALB and S3
+  scale automatically with no configuration. RDS storage also auto-grows up to
+  `rds_max_allocated_storage` as usage approaches the current limit — the one part of the stack
+  that doesn't self-heal under growth otherwise.
 
 ### Data layer
 
@@ -279,10 +301,11 @@ so CloudWatch log groups and metrics are viewable in the same place.
 | Node capacity type | SPOT | ON_DEMAND | ON_DEMAND |
 | Node group size (min/max/desired) | 1/3/2 | 2/4/2 | 3/10/4 |
 | RDS instance class | `db.t3.micro` | `db.t3.small` | `db.r6g.large` |
+| RDS storage (start → max) | 20 → 50 GiB | 20 → 50 GiB | 100 → 500 GiB |
 | RDS Multi-AZ | no | no | yes |
 | RDS deletion protection | no | no | yes |
 | Log retention | 7 days | 14 days | 90 days |
-| Frontend/backend replicas | 1 | 2 | 3 |
+| Frontend/backend replicas | 1 / 1 (fixed) | 2–4 (HPA) | 3–6 (HPA) |
 
 Only `dev` has been deployed and verified end-to-end so far; `stg`/`prod` are defined but not yet
 applied.
@@ -307,43 +330,65 @@ applied.
 
 Real issues hit (and fixed) while building this out:
 
-**`Error: Unsupported argument: most_recent`** — `aws_eks_addon` doesn't have a `most_recent`
-argument in this AWS provider version; omit `addon_version` entirely to get the default version.
+### 🛠️ EKS & AWS Provider Issues
 
-**`Invalid for_each argument` on the RDS security group rule** — `for_each` needs its *keys* known
-at plan time; `module.eks.node_security_group_id` isn't known until the cluster exists. Switched
-to `count = length(var.allowed_security_group_ids)`, which only needs the list *length* known.
+**1. EKS Add-on Error (`Unsupported argument: most_recent`)**
+The Problem: The `aws_eks_addon` resource does not support the `most_recent` argument in your current AWS provider version.
 
-**vpc-cni pods crash-looping with `Unauthorized operation: ec2:DescribeNetworkInterfaces`** — the
-`iam-role-for-service-accounts-eks` submodule needs `vpc_cni_enable_ipv4 = true` or it generates an
-almost-empty CNI policy (just `ec2:CreateTags`).
+The Fix: Delete the `addon_version` line entirely from your code to automatically use the default version.
 
-**Cluster Autoscaler IRSA policy error** — the submodule's `attach_cluster_autoscaler_policy` also
-needs `cluster_autoscaler_cluster_names` set, or policy generation fails with a `coalescelist`
-error.
+**2. RDS Security Group Error (`Invalid for_each argument`)**
+The Problem: `for_each` requires keys to be known before deployment (at plan time), but the EKS node security group ID is only generated after the cluster is created.
 
-**`helm install --create-namespace` → `namespaces is forbidden`** — the CI deployer's EKS access is
-deliberately scoped to one namespace; creating a Namespace is a cluster-scoped operation it can't
-do. Fix: the app namespace is created by Terraform (the cluster-admin principal) instead, and
-`--create-namespace` is never passed by the pipeline.
+The Fix: Switch from `for_each` to `count = length(var.allowed_security_group_ids)`. Terraform only needs to know the length of the list at plan time.
 
-**`helm upgrade` failing on the migration Job: `Invalid value: ... spec.template`** —
-`Job.spec.template` is immutable, and the image tag changes every deploy. Fixed by making the Job
-a `post-install,post-upgrade` Helm hook (`hook-delete-policy: before-hook-creation`), so Helm
-deletes the old Job and creates a new one instead of patching in place.
+**3. VPC-CNI Pods Crash-Looping (`Unauthorized operation`)**
+The Problem: Pods are crashing because the EKS IAM submodule generated a blank policy lacking the necessary EC2 network permissions.
 
-**App unreachable through the ALB despite `Running` pods** — the ALB target group's health check
-defaults to path `/`, expecting `200`; the backend has no root route (`404`), so the target was
-marked unhealthy. Fixed with an explicit `alb.ingress.kubernetes.io/healthcheck-path: /healthz`
-annotation — and hit the same trap again for the frontend Service once it was added (its target
-group inherited the same shared annotation), fixed by adding a `/healthz` stub to its nginx config.
+The Fix: Explicitly set `vpc_cni_enable_ipv4 = true` in the submodule.
 
-**Prometheus/Grafana PVCs stuck `Pending`** — the cluster's only `StorageClass` (`gp2`) used the
-legacy in-tree `kubernetes.io/aws-ebs` provisioner, which no longer works on this EKS version
-(only the CSI driver does). Fixed by creating a CSI-backed `gp3` StorageClass.
+**4. Cluster Autoscaler Policy Error (`coalescelist`)**
+The Problem: The IAM policy generation failed because a required variable was missing.
 
-**`kubectl annotate ... /healthz` silently became `.../C:/Program Files/Git/healthz`** — Git Bash
-on Windows auto-converts arguments that look like POSIX paths. Fixed with `MSYS_NO_PATHCONV=1`.
+The Fix: Ensure you populate the `cluster_autoscaler_cluster_names` variable when setting `attach_cluster_autoscaler_policy = true`.
+
+### ☸️ Helm & Kubernetes Deployment
+
+**5. Helm Permission Error (`namespaces is forbidden`)**
+The Problem: The CI/CD pipeline's access is restricted to a single namespace, so it lacks the cluster-wide permissions required to run `helm install --create-namespace`.
+
+The Fix: Have Terraform (which has cluster-admin rights) create the namespace beforehand, and remove the `--create-namespace` flag from your CI pipeline.
+
+**6. Migration Job Failure (`Invalid value: ... spec.template`)**
+The Problem: Kubernetes Job templates are immutable. Every time a new deployment changes the image
+tag, Helm tries to update the existing Job in place, causing a crash.
+
+The Fix: Turn the Job into a Helm hook using the annotation `hook-delete-policy:
+before-hook-creation`. This forces Helm to delete the old Job and create a fresh one on every
+deploy.
+
+### 🌐 Networking & Storage
+
+**7. App Unreachable / Unhealthy ALB Targets**
+The Problem: The AWS Load Balancer (ALB) health check defaults to `/`, but the application returned a `404` at that root path, marking the pods unhealthy. Additionally, a shared frontend
+config inherited this broken default.
+The Fix:
+1. Add the annotation `alb.ingress.kubernetes.io/healthcheck-path: /healthz` to point to a valid
+   health endpoint.
+2. Add a matching `/healthz` stub to the frontend's Nginx configuration so it returns a `200 OK`.
+
+**8. PVCs Stuck Pending (Prometheus/Grafana)**
+The Problem: The legacy `gp2` StorageClass uses an old AWS EBS plugin that is no longer supported
+in newer EKS versions.
+The Fix: Deploy and switch to a modern, CSI-driver-backed `gp3` StorageClass.
+
+### 💻 OS & Local Environment
+
+**9. Git Bash Path Corruption (`/healthz` becomes `C:/Program Files/...`)**
+The Problem: When running `kubectl` on Windows via Git Bash, the terminal automatically converts
+forward slashes into Windows file paths.
+The Fix: Prefix your command or set your environment variable with `MSYS_NO_PATHCONV=1` to disable
+automatic path conversion.
 
 ---
 

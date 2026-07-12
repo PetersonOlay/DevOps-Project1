@@ -1,3 +1,5 @@
+{{/* Frontend (React/nginx) Deployment — no AWS access, no backend config,
+     only same-origin relative fetches. */}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,7 +8,9 @@ metadata:
   labels:
     {{- include "expense-tracker.frontend.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.frontend.autoscaling.enabled }}
   replicas: {{ .Values.frontend.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "expense-tracker.frontend.selectorLabels" . | nindent 6 }}

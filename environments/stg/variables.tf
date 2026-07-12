@@ -116,6 +116,11 @@ variable "rds_allocated_storage" {
   type = number
 }
 
+variable "rds_max_allocated_storage" {
+  description = "Ceiling RDS can auto-grow storage to (RDS storage autoscaling)"
+  type        = number
+}
+
 variable "rds_multi_az" {
   type = bool
 }

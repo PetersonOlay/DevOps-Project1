@@ -1,3 +1,5 @@
+# dev-environment overrides, layered on top of values.yaml. image.tag and
+# frontend.image.tag are bumped automatically by the CI pipeline.
 image:
   repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-app-dev"
   tag: "app-dev-20260711-222938"

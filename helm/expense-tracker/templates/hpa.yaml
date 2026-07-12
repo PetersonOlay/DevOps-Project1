@@ -1,0 +1,26 @@
+{{/* Scales the backend Deployment on CPU utilization. metrics-server (EKS
+     add-on) must be running for this to have real targets instead of
+     <unknown>. */}}
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "expense-tracker.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "expense-tracker.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "expense-tracker.name" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
