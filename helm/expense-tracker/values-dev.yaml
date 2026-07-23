@@ -10,7 +10,7 @@ config:
   dbHost: "k8s-platform-dev-db.cots7ubp4aji.us-east-1.rds.amazonaws.com"
   dbPort: "5432"
   dbName: "expenses"
-  dbSecretArn: "arn:aws:secretsmanager:us-east-1:395675597879:secret:rds!db-6212db73-0362-465e-9a64-94667ab8657b-yIJdA1"
+  dbSecretArn: "arn:aws:secretsmanager:us-east-1:395675597879:secret:rds!db-a1507832-53cf-4396-9431-31647ee82117-IF24u7"
   s3Bucket: "k8s-platform-app-dev-395675597879"
   awsRegion: "us-east-1"
   appEnv: "dev"
