@@ -48,7 +48,7 @@ resource "kubernetes_namespace" "app" {
 module "ecr" {
   source = "../../modules/ecr"
 
-  repository_name = var.ecr_repository_name
+  repository_name = var.backend_ecr_repository_name
 
   tags = local.common_tags
 }

@@ -74,7 +74,7 @@ Kubernetes deployment, CI/CD automation, and observability.
 | **RDS PostgreSQL** | Private, one instance per environment, master password AWS-managed (`modules/rds`) |
 | **S3 app bucket** | Versioned, encrypted, TLS-only bucket policy, holds uploaded receipts (`modules/s3-app-bucket`) |
 | **Secrets Manager** | A placeholder secret per environment for miscellaneous app config (`modules/secrets-manager`); the RDS password lives in its own AWS-managed secret, not this one |
-| **2 ECR repositories per environment** | `k8s-platform-app-<env>` (backend), `k8s-platform-frontend-<env>` (frontend) (`modules/ecr`) |
+| **2 ECR repositories per environment** | `expense-platform-backend-<env>` (backend), `expense-platform-frontend-<env>` (frontend) (`modules/ecr`) |
 | **Helm chart** | `helm/expense-tracker`, one release for both services |
 | **CI/CD** | `.github/workflows/build-and-deploy.yml` |
 | **Monitoring** | `monitoring/` (Prometheus + Grafana + CloudWatch datasource) |
@@ -307,8 +307,8 @@ GitHub Actions
   ▼
 ECR (private)
   |  <account_id>.dkr.ecr.<region>.amazonaws.com/
-  |  ├─▶ k8s-platform-app-<env>:app-<env>-<timestamp>
-  |  └─▶ k8s-platform-frontend-<env>:web-<env>-<timestamp>
+  |  ├─▶ expense-platform-backend-<env>:backend-<env>-<timestamp>
+  |  └─▶ expense-platform-frontend-<env>:web-<env>-<timestamp>
   ▼
 deploy job                       — bumps both tags in values-<env>.yaml, commits back to main
   |
@@ -326,7 +326,7 @@ AWS Secrets Manager
   |  rds!db-<generated>                  (RDS-managed)  — { username, password }
   |  <env>/app/placeholder               (Terraform)    — misc app config
   ▼
-Backend Pod (IRSA role: k8s-platform-<env>-app)
+Backend Pod (IRSA role: expense-platform-<env>-app)
   |  AWS SDK v3 GetSecretValue at boot (src/secrets.js) — no static credentials
   |  no External Secrets Operator, no Kubernetes Secret object involved
   ▼
@@ -456,7 +456,7 @@ Push to `main` (or trigger `workflow_dispatch` targeting the environment) — CI
 both images, then runs `helm upgrade --install`.
 
 ```bash
-aws eks update-kubeconfig --name k8s-platform-dev --region us-east-1
+aws eks update-kubeconfig --name expense-platform-dev --region us-east-1
 kubectl get pods -n expense-tracker-dev
 kubectl get ingress -n expense-tracker-dev
 ```
@@ -476,7 +476,7 @@ cd monitoring
 
 1. **test** — `npm ci && npm test` in `app/expense-tracker-backend`.
 2. **build-and-push** — builds and pushes both images to their ECR repos, tagged
-   `app-<env>-<timestamp>` (backend) / `web-<env>-<timestamp>` (frontend).
+   `backend-<env>-<timestamp>` (backend) / `web-<env>-<timestamp>` (frontend).
 3. **deploy** — bumps both tags in `values-<env>.yaml` with `yq`, commits the change back to
    `main`, then runs `helm upgrade --install` against the target cluster.
 

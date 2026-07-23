@@ -17,7 +17,7 @@ cd environments/<env>
 terraform apply
 terraform output -raw ci_deployer_access_key_id
 terraform output -raw ci_deployer_secret_access_key
-terraform output -raw ecr_repository_url
+terraform output -raw backend_ecr_repository_url
 terraform output -raw frontend_ecr_repository_url
 ```
 
@@ -47,9 +47,9 @@ In the repo: Settings → Environments → New environment, one each named exact
 | Variable | Value |
 |---|---|
 | `AWS_REGION` | `us-east-1` |
-| `ECR_REGISTRY` | that environment's `ecr_repository_url` output (backend) |
+| `BACKEND_ECR_REGISTRY` | that environment's `backend_ecr_repository_url` output |
 | `FRONTEND_ECR_REGISTRY` | that environment's `frontend_ecr_repository_url` output |
-| `EKS_CLUSTER` | `k8s-platform-<env>` |
+| `EKS_CLUSTER` | `expense-platform-<env>` |
 | `NAMESPACE` | that environment's `app_namespace` output (`expense-tracker-<env>`) |
 
 Consider adding required-reviewer protection rules on the `stg`/`prod` GitHub Environments to gate

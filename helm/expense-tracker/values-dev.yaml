@@ -1,21 +1,21 @@
 # dev-environment overrides, layered on top of values.yaml. image.tag and
 # frontend.image.tag are bumped automatically by the CI pipeline.
 image:
-  repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-app-dev"
-  tag: "app-dev-20260723-032437"
+  repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/expense-platform-backend-dev"
+  tag: "backend-dev-20260723-000000"
 replicaCount: 1
 serviceAccount:
-  roleArn: "arn:aws:iam::395675597879:role/k8s-platform-dev-app"
+  roleArn: "arn:aws:iam::395675597879:role/expense-platform-dev-app"
 config:
-  dbHost: "k8s-platform-dev-db.cots7ubp4aji.us-east-1.rds.amazonaws.com"
+  dbHost: "expense-platform-dev-db.cots7ubp4aji.us-east-1.rds.amazonaws.com"
   dbPort: "5432"
   dbName: "expenses"
-  dbSecretArn: "arn:aws:secretsmanager:us-east-1:395675597879:secret:rds!db-a1507832-53cf-4396-9431-31647ee82117-IF24u7"
-  s3Bucket: "k8s-platform-app-dev-395675597879"
+  dbSecretArn: "arn:aws:secretsmanager:us-east-1:395675597879:secret:rds!db-64f9b6ab-e59f-409a-9792-d252171bd3f6-s2wgqe"
+  s3Bucket: "expense-platform-app-dev-395675597879"
   awsRegion: "us-east-1"
   appEnv: "dev"
 frontend:
   image:
-    repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/k8s-platform-frontend-dev"
-    tag: "web-dev-20260723-032437"
+    repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/expense-platform-frontend-dev"
+    tag: "web-dev-20260712-190338"
   replicaCount: 1

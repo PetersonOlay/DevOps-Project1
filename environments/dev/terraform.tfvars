@@ -22,10 +22,10 @@ node_group_desired_size   = 2
 cluster_enabled_log_types = ["api"]
 log_retention_days        = 7
 
-ecr_repository_name          = "k8s-platform-app-dev"
-frontend_ecr_repository_name = "k8s-platform-frontend-dev"
+backend_ecr_repository_name  = "expense-platform-backend-dev"
+frontend_ecr_repository_name = "expense-platform-frontend-dev"
 
-app_s3_bucket_name   = "k8s-platform-app-dev-395675597879"
+app_s3_bucket_name   = "expense-platform-app-dev-395675597879"
 app_s3_force_destroy = true
 
 secret_placeholder_name = "dev/app/placeholder"

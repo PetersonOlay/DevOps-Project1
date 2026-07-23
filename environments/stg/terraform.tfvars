@@ -22,10 +22,10 @@ node_group_desired_size   = 2
 cluster_enabled_log_types = ["api", "audit"]
 log_retention_days        = 14
 
-ecr_repository_name          = "k8s-platform-app-stg"
-frontend_ecr_repository_name = "k8s-platform-frontend-stg"
+backend_ecr_repository_name  = "expense-platform-backend-stg"
+frontend_ecr_repository_name = "expense-platform-frontend-stg"
 
-app_s3_bucket_name   = "k8s-platform-app-stg-395675597879"
+app_s3_bucket_name   = "expense-platform-app-stg-395675597879"
 app_s3_force_destroy = true
 
 secret_placeholder_name = "stg/app/placeholder"

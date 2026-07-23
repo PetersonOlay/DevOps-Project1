@@ -70,7 +70,7 @@ variable "log_retention_days" {
   default = 14
 }
 
-variable "ecr_repository_name" {
+variable "backend_ecr_repository_name" {
   type = string
 }
 

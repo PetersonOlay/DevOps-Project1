@@ -22,10 +22,10 @@ node_group_desired_size   = 4
 cluster_enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 log_retention_days        = 90
 
-ecr_repository_name          = "k8s-platform-app-prod"
-frontend_ecr_repository_name = "k8s-platform-frontend-prod"
+backend_ecr_repository_name  = "expense-platform-backend-prod"
+frontend_ecr_repository_name = "expense-platform-frontend-prod"
 
-app_s3_bucket_name   = "k8s-platform-app-prod-395675597879"
+app_s3_bucket_name   = "expense-platform-app-prod-395675597879"
 app_s3_force_destroy = false
 
 secret_placeholder_name = "prod/app/placeholder"

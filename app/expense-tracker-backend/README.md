@@ -44,9 +44,9 @@ Postgres + stub for offline testing.)
 ## Build & push to ECR
 
 ```
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ecr_repository_url>
-docker build -t <ecr_repository_url>:dev .
-docker push <ecr_repository_url>:dev
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <backend_ecr_repository_url>
+docker build -t <backend_ecr_repository_url>:dev .
+docker push <backend_ecr_repository_url>:dev
 ```
 
-`<ecr_repository_url>` comes from `terraform -chdir=../../environments/dev output ecr_repository_url`.
+`<backend_ecr_repository_url>` comes from `terraform -chdir=../../environments/dev output ecr_repository_url`.

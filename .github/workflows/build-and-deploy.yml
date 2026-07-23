@@ -61,7 +61,7 @@ jobs:
         id: tag
         run: |
           TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-          echo "backend_tag=app-${{ github.event.inputs.environment || 'dev' }}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+          echo "backend_tag=backend-${{ github.event.inputs.environment || 'dev' }}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
           echo "frontend_tag=web-${{ github.event.inputs.environment || 'dev' }}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials
@@ -76,8 +76,8 @@ jobs:
 
       - name: Build and push backend image
         run: |
-          docker build -t ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }} app/expense-tracker-backend/
-          docker push ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }}
+          docker build -t ${{ vars.BACKEND_ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }} app/expense-tracker-backend/
+          docker push ${{ vars.BACKEND_ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }}
 
       - name: Build and push frontend image
         run: |

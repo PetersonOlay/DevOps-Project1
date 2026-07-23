@@ -36,7 +36,7 @@ grafana:
   # requires to inject credentials.
   serviceAccount:
     annotations:
-      eks.amazonaws.com/role-arn: "arn:aws:iam::395675597879:role/k8s-platform-dev-grafana-cloudwatch"
+      eks.amazonaws.com/role-arn: "arn:aws:iam::395675597879:role/expense-platform-dev-grafana-cloudwatch"
 
   additionalDataSources:
     - name: CloudWatch
