@@ -1,4 +1,4 @@
-# expense-tracker
+# expense-tracker-backend
 
 Node.js/Express API storing expense records in RDS Postgres and receipt files in S3.
 

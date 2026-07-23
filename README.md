@@ -1,19 +1,53 @@
-# Expense-Tracker on AWS EKS
+# Expense-Tracker App
 
-A small expense & receipt tracking platform running on Amazon EKS, built to demonstrate a complete
-Terraform → Kubernetes → CI/CD → observability workflow for a fully automated web application:
+Expense-Tracker is a cloud-native expense and receipt tracking platform running on Amazon EKS.
+It demonstrates a complete, production-style workflow spanning infrastructure as code,
+Kubernetes deployment, CI/CD automation, and observability.
 
-- **Infrastructure:** multi-AZ Amazon EKS 1.36 clusters (one per environment) provisioned by
-  Terraform, with a dedicated VPC, managed node group, and IRSA for every AWS-facing workload
-- **Backend:** Node.js + Express REST API, storing records in RDS Postgres and receipt files in S3
-- **Frontend:** React 18 + Vite single-page app, served by nginx, sharing one ALB with the backend
-- **Data:** PostgreSQL on RDS (AWS-managed master password, never seen by Terraform), a
-  KMS-free S3 bucket for receipts, two ECR repositories (backend/frontend)
-- **Deployment:** a single Helm chart (`helm/expense-tracker`) for both services
-- **CI/CD:** GitHub Actions — builds and pushes both images, bumps their tags, and runs
-  `helm upgrade` on every push to `main`
-- **Observability:** Prometheus + Grafana (`kube-prometheus-stack`) for platform and application
-  metrics, plus CloudWatch as a second Grafana datasource
+---
+
+## Table of Contents
+
+- [Expense-Tracker App](#expense-tracker-app)
+  - [Table of Contents](#table-of-contents)
+  - [Platform Overview](#platform-overview)
+    - [Infrastructure](#infrastructure)
+    - [Application](#application)
+  - [Architecture Design](#architecture-design)
+    - [Compute](#compute)
+    - [Data layer](#data-layer)
+    - [Terraform layout](#terraform-layout)
+    - [Helm chart (helm/expense-tracker)](#helm-chart-helmexpense-tracker)
+  - [Networking Design](#networking-design)
+    - [Per-environment layout](#per-environment-layout)
+    - [Security group boundaries](#security-group-boundaries)
+    - [Ingress routing](#ingress-routing)
+    - [Topology](#topology)
+  - [Data Flow](#data-flow)
+    - [Request flow (read/write an expense)](#request-flow-readwrite-an-expense)
+    - [Image Delivery Flow](#image-delivery-flow)
+    - [Secret Injection Flow](#secret-injection-flow)
+    - [Metrics \& Logs Flow](#metrics--logs-flow)
+    - [Where data lives](#where-data-lives)
+  - [Project Structure](#project-structure)
+  - [Prerequisites](#prerequisites)
+  - [Setup \& Deployment](#setup--deployment)
+    - [1. Bootstrap remote state (once per AWS account)](#1-bootstrap-remote-state-once-per-aws-account)
+    - [2. Apply an environment](#2-apply-an-environment)
+    - [3. Wire up CI/CD](#3-wire-up-cicd)
+    - [4. Fill in the Helm values](#4-fill-in-the-helm-values)
+    - [5. First deploy](#5-first-deploy)
+    - [6. Install monitoring (optional, per cluster)](#6-install-monitoring-optional-per-cluster)
+  - [CI/CD Pipeline](#cicd-pipeline)
+  - [Monitoring](#monitoring)
+  - [Environments](#environments)
+  - [Security](#security)
+  - [Troubleshooting](#troubleshooting)
+    - [🛠️ EKS \& AWS Provider Issues](#️-eks--aws-provider-issues)
+    - [☸️ Helm \& Kubernetes Deployment](#️-helm--kubernetes-deployment)
+    - [🌐 Networking \& Storage](#-networking--storage)
+    - [💻 OS \& Local Environment](#-os--local-environment)
+  - [Teardown](#teardown)
 
 ---
 
@@ -21,39 +55,33 @@ Terraform → Kubernetes → CI/CD → observability workflow for a fully automa
 
 ### Infrastructure
 
-- **Amazon EKS 1.36** — managed control plane, `authentication_mode = API_AND_CONFIG_MAP` (both
-  the aws-auth ConfigMap and the newer EKS Access Entries API work)
-- **VPC** — 2 AZs, public + private subnets, NAT gateway (single for dev/stg, one per AZ for prod)
-- **EKS Managed Node Group** — Amazon Linux, capacity type and sizing vary per environment
-- **EKS-managed add-ons** — `vpc-cni`, `coredns`, `kube-proxy`, `aws-ebs-csi-driver`,
-  `metrics-server`, `amazon-cloudwatch-observability` (`modules/eks-addons`)
-- **AWS Load Balancer Controller + Cluster Autoscaler** — Helm releases applied by Terraform
-  (`environments/<env>/helm.tf`)
-- **IRSA everywhere** — one scoped IAM role per workload (VPC CNI, EBS CSI, Cluster Autoscaler,
-  Load Balancer Controller, the app, CloudWatch Observability, Grafana's CloudWatch datasource);
-  see `modules/irsa`
-- **S3 + DynamoDB-free state backend** — `bootstrap/` is a one-time, local-state root module that
-  creates the S3 bucket used as the backend for every environment
+| Component | Details |
+|---|---|
+| **Amazon EKS 1.36** | Managed control plane, `authentication_mode = API_AND_CONFIG_MAP` (both the aws-auth ConfigMap and the newer EKS Access Entries API work) |
+| **VPC** | 2 AZs, public + private subnets, NAT gateway (single for dev/stg, one per AZ for prod) |
+| **EKS Managed Node Group** | Amazon Linux, capacity type and sizing vary per environment |
+| **EKS-managed add-ons** | `vpc-cni`, `coredns`, `kube-proxy`, `aws-ebs-csi-driver`, `metrics-server`, `amazon-cloudwatch-observability` (`modules/eks-addons`) |
+| **AWS Load Balancer Controller + Cluster Autoscaler** | Helm releases applied by Terraform (`environments/<env>/helm.tf`) |
+| **IRSA everywhere** | One scoped IAM role per workload (VPC CNI, EBS CSI, Cluster Autoscaler, Load Balancer Controller, the app, CloudWatch Observability, Grafana's CloudWatch datasource); see `modules/irsa` |
+| **State backend** | S3 + DynamoDB-free — `bootstrap/` is a one-time, local-state root module that creates the S3 bucket used as the backend for every environment |
 
 ### Application
 
-- **`app/expense-tracker`** — the API (Deployment + Service in the Helm chart)
-- **`app/expense-tracker-frontend`** — the UI (its own Deployment + Service)
-- **RDS PostgreSQL** — private, one instance per environment, master password AWS-managed
-  (`modules/rds`)
-- **S3 app bucket** — versioned, encrypted, TLS-only bucket policy, holds uploaded receipts
-  (`modules/s3-app-bucket`)
-- **Secrets Manager** — a placeholder secret per environment for miscellaneous app config
-  (`modules/secrets-manager`); the RDS password lives in its own AWS-managed secret, not this one
-- **2 ECR repositories per environment** — `k8s-platform-app-<env>` (backend),
-  `k8s-platform-frontend-<env>` (frontend) (`modules/ecr`)
-- **Helm chart** — `helm/expense-tracker`, one release for both services
-- **CI/CD** — `.github/workflows/build-and-deploy.yml`
-- **Monitoring** — `monitoring/` (Prometheus + Grafana + CloudWatch datasource)
+| Component | Details |
+|---|---|
+| **`app/expense-tracker-backend`** | The API (Deployment + Service in the Helm chart) |
+| **`app/expense-tracker-frontend`** | The UI (its own Deployment + Service) |
+| **RDS PostgreSQL** | Private, one instance per environment, master password AWS-managed (`modules/rds`) |
+| **S3 app bucket** | Versioned, encrypted, TLS-only bucket policy, holds uploaded receipts (`modules/s3-app-bucket`) |
+| **Secrets Manager** | A placeholder secret per environment for miscellaneous app config (`modules/secrets-manager`); the RDS password lives in its own AWS-managed secret, not this one |
+| **2 ECR repositories per environment** | `k8s-platform-app-<env>` (backend), `k8s-platform-frontend-<env>` (frontend) (`modules/ecr`) |
+| **Helm chart** | `helm/expense-tracker`, one release for both services |
+| **CI/CD** | `.github/workflows/build-and-deploy.yml` |
+| **Monitoring** | `monitoring/` (Prometheus + Grafana + CloudWatch datasource) |
 
 ---
 
-## Architecture
+## Architecture Design
 
 This is a 3-tier application, split across two tools by design — not a gap, just where each tier
 is deployed from:
@@ -61,7 +89,7 @@ is deployed from:
 | Tier | What | Deployed by |
 |---|---|---|
 | Presentation | `app/expense-tracker-frontend` (React + Vite, nginx-served) | Helm (`helm/expense-tracker`) |
-| Application | `app/expense-tracker` (Node.js + Express) | Helm (`helm/expense-tracker`) |
+| Application | `app/expense-tracker-backend` (Node.js + Express) | Helm (`helm/expense-tracker`) |
 | Data | RDS PostgreSQL | Terraform (`modules/rds`) |
 
 RDS was deliberately kept as a managed service rather than a self-hosted `StatefulSet` in the
@@ -70,16 +98,19 @@ the strongest drift-detection story (`terraform plan` diffs the actual `aws_db_i
 attribute-by-attribute). Self-hosting Postgres in Kubernetes would mean owning all of that
 operationally, for no scaling benefit this app actually needs.
 
-### Network
+```mermaid
+graph LR
+    subgraph Helm["Deployed by Helm (helm/expense-tracker)"]
+        FE["Presentation<br/>expense-tracker-frontend<br/>(React + Vite, nginx)"]
+        BE["Application<br/>expense-tracker<br/>(Node.js + Express)"]
+    end
+    subgraph TF["Deployed by Terraform (modules/rds)"]
+        DB[("Data<br/>RDS PostgreSQL")]
+    end
 
-- VPC per environment, `10.0.0.0/16` (dev) / `10.1.0.0/16` (stg) / `10.2.0.0/16` (prod), 2 AZs,
-  public + private `/19` subnets (`modules/vpc`).
-- NAT strategy: dev/stg share a single NAT gateway; prod runs one per AZ so a zone outage doesn't
-  cut off all outbound traffic.
-- **Ingress**: the app is reachable through one ALB per environment, provisioned by the AWS Load
-  Balancer Controller from `helm/expense-tracker/templates/ingress.yaml`. Paths are split so both
-  services share the same origin (no CORS needed): `/expenses*` and `/healthz` route to the
-  backend Service, everything else (`/`) routes to the frontend Service.
+    FE -->|"same-origin fetch (/expenses*)"| BE
+    BE -->|"pg (TLS)"| DB
+```
 
 ### Compute
 
@@ -90,7 +121,7 @@ operationally, for no scaling benefit this app actually needs.
   [Security](#security) for why.
 - **Scaling**: three independent layers. Cluster Autoscaler adds/removes EC2 nodes as pod demand
   changes; a `HorizontalPodAutoscaler` per service (backend/frontend, CPU-based, disabled in dev,
-  enabled in stg/prod — `helm/expense-tracker/templates/hpa.yaml` /
+  enabled in stg/prod — `helm/expense-tracker/templates/backend-hpa.yaml` /
   `frontend-hpa.yaml`) adds/removes pod replicas within the node group's capacity; the ALB and S3
   scale automatically with no configuration. RDS storage also auto-grows up to
   `rds_max_allocated_storage` as usage approaches the current limit — the one part of the stack
@@ -119,7 +150,11 @@ operationally, for no scaling benefit this app actually needs.
 
 ---
 
-## Backend (app/expense-tracker)
+## Application Design
+
+The three pieces named in the Architecture Design tiers above, in detail.
+
+### Backend (app/expense-tracker-backend)
 
 Node.js + Express, using `pg` for Postgres and the AWS SDK v3 for S3/Secrets Manager.
 
@@ -138,29 +173,197 @@ On boot, the app fetches its DB credentials from the RDS-managed Secrets Manager
 pod's IRSA role — no database password ever touches Terraform state or a Kubernetes Secret.
 Schema migrations (`src/migrate.js`) run as a Helm `post-install,post-upgrade` hook.
 
-## Frontend (app/expense-tracker-frontend)
+### Frontend (app/expense-tracker-frontend)
 
 React 18 + Vite, built to a static bundle and served by nginx. Talks to the API with **same-origin
 relative fetches** (`fetch("/expenses")`) — no API base URL or CORS configuration needed, since
 both services sit behind the same ALB. Supports creating, editing, deleting, and summarizing
 expenses, with receipt upload/replace.
 
-## Helm chart (helm/expense-tracker)
+### Helm chart (helm/expense-tracker)
 
 One chart, one release per environment, both services:
 
-- `serviceaccount.yaml` — annotated with the app's IRSA role ARN
-- `configmap.yaml` — non-secret config (DB host/port, S3 bucket, region)
-- `deployment.yaml` / `service.yaml` — backend
+- `backend-serviceaccount.yaml` — annotated with the app's IRSA role ARN
+- `backend-configmap.yaml` — non-secret config (DB host/port, S3 bucket, region)
+- `backend-deployment.yaml` / `backend-service.yaml` — backend
 - `frontend-deployment.yaml` / `frontend-service.yaml` — frontend
 - `ingress.yaml` — one ALB, path-split between the two Services
-- `migration-job.yaml` — a `post-install,post-upgrade` hook (Job specs are immutable, so a plain
-  `helm upgrade` can't patch one in place once the image tag changes — the hook deletes the
+- `backend-migration-job.yaml` — a `post-install,post-upgrade` hook (Job specs are immutable, so a
+  plain `helm upgrade` can't patch one in place once the image tag changes — the hook deletes the
   previous Job and creates a fresh one instead)
 
 `values.yaml` holds chart defaults; `values-<env>.yaml` carries environment-specific values
 (image repository/tag, replica count, IRSA role ARN, RDS endpoint, S3 bucket). See
 [`helm/expense-tracker/README.md`](helm/expense-tracker/README.md) for install/upgrade commands.
+
+---
+
+## Networking Design
+
+### Per-environment layout
+
+| | dev | stg | prod |
+|---|---|---|---|
+| VPC CIDR | `10.0.0.0/16` | `10.1.0.0/16` | `10.2.0.0/16` |
+| AZs | 2 | 2 | 2 |
+| Private subnets | `10.0.0.0/19`, `10.0.32.0/19` | `10.1.0.0/19`, `10.1.32.0/19` | `10.2.0.0/19`, `10.2.32.0/19` |
+| Public subnets | `10.0.64.0/19`, `10.0.96.0/19` | `10.1.64.0/19`, `10.1.96.0/19` | `10.2.64.0/19`, `10.2.96.0/19` |
+| NAT gateway | single (shared) | single (shared) | one per AZ |
+
+Each environment gets its own VPC (`modules/vpc`) — no peering or shared networking between
+environments. Prod's per-AZ NAT gateways mean a single AZ outage doesn't take down all outbound
+traffic (patching, ECR pulls, Secrets Manager calls); dev/stg accept that risk for lower cost.
+
+### Security group boundaries
+
+| Security group | Attached to | Allows inbound from |
+|---|---|---|
+| Cluster SG | EKS control plane | Node SG (kubelet/webhook ports) |
+| Node SG | EKS worker nodes | Cluster SG (control plane), self (pod-to-pod: CoreDNS, webhooks) |
+| RDS SG | RDS instance | Node SG only, on `5432` (`modules/rds`) — nothing else in the VPC, and nothing outside it, can reach the database |
+
+### Ingress routing
+
+One ALB per environment (AWS Load Balancer Controller, provisioned from
+`helm/expense-tracker/templates/ingress.yaml`), shared by both services so the frontend can call
+the API same-origin with no CORS configuration:
+
+| Path | Routes to | Purpose |
+|---|---|---|
+| `/expenses*` | backend Service | REST API |
+| `/healthz` | backend Service | ALB target-group health check |
+| `/` (everything else) | frontend Service | Static SPA bundle |
+
+### Topology
+
+```mermaid
+graph TB
+    Internet((Internet))
+    IGW[Internet Gateway]
+
+    subgraph VPC["VPC (per environment)"]
+        subgraph AZ1["AZ 1"]
+            PubA["Public subnet<br/>ALB, NAT Gateway"]
+            PrivA["Private subnet<br/>EKS nodes"]
+        end
+        subgraph AZ2["AZ 2"]
+            PubB["Public subnet<br/>ALB, NAT Gateway (prod only)"]
+            PrivB["Private subnet<br/>EKS nodes"]
+        end
+        RDS[("RDS PostgreSQL<br/>(private subnets only)")]
+    end
+
+    Internet --> IGW --> PubA & PubB
+    PubA --> PrivA
+    PubB --> PrivB
+    PrivA --> RDS
+    PrivB --> RDS
+    PrivA -.->|outbound via NAT| PubA
+    PrivB -.->|outbound via NAT| PubB
+```
+
+---
+
+## Data Flow
+
+### Request flow (read/write an expense)
+
+```
+Browser
+  |
+  |  HTTP GET /
+  ▼
+ALB (Ingress)
+  |
+  |  Rule: /*  →  frontend service
+  ▼
+Frontend Pod (nginx)
+  |
+  |  Serves static SPA bundle
+  |
+  |  Browser JS calls fetch /expenses* (same-origin)
+  ▼
+ALB (Ingress)
+  |
+  |  Rule: /expenses*, /healthz  →  backend service
+  ▼
+Backend Pod (Express)
+  |
+  ├─▶ Secrets Manager (IRSA)      — fetch DB credentials, no static creds
+  ├─▶ RDS Postgres (pg, TLS)      — query/insert expense records
+  └─▶ S3 receipts bucket (IRSA)   — upload on create, presigned URL on read
+```
+
+### Image Delivery Flow
+
+```
+GitHub Push to main
+  |
+  ▼
+GitHub Actions
+  |  test              — npm ci && npm test
+  |  build-and-push    — docker build → docker push (backend + frontend)
+  ▼
+ECR (private)
+  |  <account_id>.dkr.ecr.<region>.amazonaws.com/
+  |  ├─▶ k8s-platform-app-<env>:app-<env>-<timestamp>
+  |  └─▶ k8s-platform-frontend-<env>:web-<env>-<timestamp>
+  ▼
+deploy job                       — bumps both tags in values-<env>.yaml, commits back to main
+  |
+  ▼
+helm upgrade --install
+  |
+  ├─▶ migration Job hook         — runs against RDS
+  └─▶ Deployment rollout         — kubelet pulls the new images via the node's IAM role
+```
+
+### Secret Injection Flow
+
+```
+AWS Secrets Manager
+  |  rds!db-<generated>                  (RDS-managed)  — { username, password }
+  |  <env>/app/placeholder               (Terraform)    — misc app config
+  ▼
+Backend Pod (IRSA role: k8s-platform-<env>-app)
+  |  AWS SDK v3 GetSecretValue at boot (src/secrets.js) — no static credentials
+  |  no External Secrets Operator, no Kubernetes Secret object involved
+  ▼
+In-memory DB credentials
+  └─▶ pg connection pool (src/db.js)
+```
+
+### Metrics & Logs Flow
+
+```
+Backend Pod
+  |  /metrics endpoint (prom-client)
+  ▼
+Prometheus (ServiceMonitor scrapes every 15s)
+  |  stores in PVC (gp3, 10Gi, 15d retention)
+  ▼
+Grafana (Prometheus datasource)
+  |  App Dashboard      — request rate, latency, errors
+  |  Platform Dashboard — node CPU/memory, pod counts (built in)
+
+EKS control plane + nodes
+  |  amazon-cloudwatch-observability add-on (fluent-bit + CloudWatch agent)
+  ▼
+CloudWatch Logs & Container Insights
+  ▼
+Grafana (CloudWatch datasource, via IRSA — module.irsa_grafana_cloudwatch)
+  └─▶ CloudWatch Dashboard — Logs Insights queries, cross-referenced with Prometheus metrics
+```
+
+### Where data lives
+
+| Data | Storage | Protection |
+|---|---|---|
+| Expense records | RDS PostgreSQL | Private subnets only, SG scoped to node SG, AWS-managed master password |
+| Receipt files | S3 app bucket | Versioned, encrypted, TLS-only bucket policy, IRSA-scoped access (no public access) |
+| DB credentials | Secrets Manager (AWS-managed) | Rotated by AWS, fetched at runtime via IRSA — never written to Terraform state or a Kubernetes Secret |
+| App config (non-secret) | Kubernetes ConfigMap | DB host/port, S3 bucket name, region — no credentials |
 
 ---
 
@@ -271,7 +474,7 @@ cd monitoring
 
 `.github/workflows/build-and-deploy.yml`, three jobs:
 
-1. **test** — `npm ci && npm test` in `app/expense-tracker`.
+1. **test** — `npm ci && npm test` in `app/expense-tracker-backend`.
 2. **build-and-push** — builds and pushes both images to their ECR repos, tagged
    `app-<env>-<timestamp>` (backend) / `web-<env>-<timestamp>` (frontend).
 3. **deploy** — bumps both tags in `values-<env>.yaml` with `yq`, commits the change back to
@@ -286,7 +489,7 @@ cross-environment credentials.
 
 Prometheus + Grafana (`kube-prometheus-stack`, manually `helm install`ed — see
 [`monitoring/README.md`](monitoring/README.md)) cover both platform metrics (nodes, pods,
-deployments — built-in dashboards) and application metrics (`app/expense-tracker`'s `/metrics`
+deployments — built-in dashboards) and application metrics (`app/expense-tracker-backend`'s `/metrics`
 endpoint, scraped via a `ServiceMonitor`, visualized in a custom dashboard). Grafana also has
 CloudWatch wired in as a second datasource (its own IRSA role, `module.irsa_grafana_cloudwatch`),
 so CloudWatch log groups and metrics are viewable in the same place.

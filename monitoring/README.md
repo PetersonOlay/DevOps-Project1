@@ -8,7 +8,7 @@ configuration.
 
 Platform metrics (nodes, pods, deployments, all cluster resources) come from the chart's bundled
 node-exporter + kube-state-metrics and Grafana's built-in default dashboards — no extra
-configuration needed. Application metrics come from `app/expense-tracker`'s `/metrics` endpoint
+configuration needed. Application metrics come from `app/expense-tracker-backend`'s `/metrics` endpoint
 (added via `prom-client`), scraped through `servicemonitor-expense-tracker.yaml` and visualized in
 the custom `expense-tracker-app-dashboard-configmap.yaml` dashboard (auto-imported by Grafana's
 sidecar, which watches for ConfigMaps labeled `grafana_dashboard: "1"`).
@@ -59,7 +59,7 @@ kubectl apply -f monitoring/dashboards/expense-tracker-app-dashboard-configmap.y
 ```
 
 The app must already be running the version with a named `http` Service port and a `/metrics`
-endpoint (`helm/expense-tracker` + `app/expense-tracker` changes deployed via the normal CI
+endpoint (`helm/expense-tracker` + `app/expense-tracker-backend` changes deployed via the normal CI
 pipeline) for the ServiceMonitor to find anything.
 
 ## Upgrade

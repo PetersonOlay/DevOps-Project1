@@ -38,11 +38,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        working-directory: app/expense-tracker
+        working-directory: app/expense-tracker-backend
 
       - name: Run tests
         run: npm test
-        working-directory: app/expense-tracker
+        working-directory: app/expense-tracker-backend
 
   # Build both container images and push them to their ECR repos, tagged
   # with the environment + a timestamp so every build is unique/traceable.
@@ -76,7 +76,7 @@ jobs:
 
       - name: Build and push backend image
         run: |
-          docker build -t ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }} app/expense-tracker/
+          docker build -t ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }} app/expense-tracker-backend/
           docker push ${{ vars.ECR_REGISTRY }}:${{ steps.tag.outputs.backend_tag }}
 
       - name: Build and push frontend image

@@ -1,6 +1,6 @@
 # CI/CD setup (manual, one-time)
 
-`build-and-deploy.yml` builds and pushes both `app/expense-tracker` (backend) and
+`build-and-deploy.yml` builds and pushes both `app/expense-tracker-backend` (backend) and
 `app/expense-tracker-frontend` (React UI), bumps both image tags in
 `helm/expense-tracker/values-<env>.yaml`, and runs `helm upgrade --install` against the target
 EKS cluster — one Helm release containing both services, which share a single ALB Ingress

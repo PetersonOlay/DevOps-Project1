@@ -3,7 +3,7 @@
 Deploys both expense-tracker services to the EKS cluster provisioned by the Terraform project in
 this repo, as one Helm release:
 - **backend** (Deployment, Service, ServiceAccount with IRSA annotation, ConfigMap, one-shot DB
-  migration Job) — the JSON API in `app/expense-tracker`.
+  migration Job) — the JSON API in `app/expense-tracker-backend`.
 - **frontend** (Deployment, Service) — the React UI in `app/expense-tracker-frontend`, serving
   static files via nginx.
 

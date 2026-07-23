@@ -12,7 +12,7 @@ npm run dev
 ```
 
 `vite.config.js` proxies `/expenses` and `/healthz` to `http://localhost:3000` — run
-`app/expense-tracker` locally on port 3000 alongside this for a full local loop.
+`app/expense-tracker-backend` locally on port 3000 alongside this for a full local loop.
 
 ## Build & push to ECR
 
