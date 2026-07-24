@@ -8,80 +8,37 @@ Kubernetes deployment, CI/CD automation, and observability.
 
 ## Table of Contents
 
-- [Expense-Tracker App](#expense-tracker-app)
-  - [Table of Contents](#table-of-contents)
-  - [Platform Overview](#platform-overview)
-    - [Infrastructure](#infrastructure)
-    - [Application](#application)
-  - [Architecture Design](#architecture-design)
-    - [Compute](#compute)
-    - [Data layer](#data-layer)
-    - [Terraform layout](#terraform-layout)
-    - [Helm chart (helm/expense-tracker)](#helm-chart-helmexpense-tracker)
-  - [Networking Design](#networking-design)
-    - [Per-environment layout](#per-environment-layout)
-    - [Security group boundaries](#security-group-boundaries)
-    - [Ingress routing](#ingress-routing)
-    - [Topology](#topology)
-  - [Data Flow](#data-flow)
-    - [Request flow (read/write an expense)](#request-flow-readwrite-an-expense)
-    - [Image Delivery Flow](#image-delivery-flow)
-    - [Secret Injection Flow](#secret-injection-flow)
-    - [Metrics \& Logs Flow](#metrics--logs-flow)
-    - [Where data lives](#where-data-lives)
-  - [Project Structure](#project-structure)
-  - [Prerequisites](#prerequisites)
-  - [Setup \& Deployment](#setup--deployment)
-    - [1. Bootstrap remote state (once per AWS account)](#1-bootstrap-remote-state-once-per-aws-account)
-    - [2. Apply an environment](#2-apply-an-environment)
-    - [3. Wire up CI/CD](#3-wire-up-cicd)
-    - [4. Fill in the Helm values](#4-fill-in-the-helm-values)
-    - [5. First deploy](#5-first-deploy)
-    - [6. Install monitoring (optional, per cluster)](#6-install-monitoring-optional-per-cluster)
-  - [CI/CD Pipeline](#cicd-pipeline)
-  - [Monitoring](#monitoring)
-  - [Environments](#environments)
-  - [Security](#security)
-  - [Troubleshooting](#troubleshooting)
-    - [🛠️ EKS \& AWS Provider Issues](#️-eks--aws-provider-issues)
-    - [☸️ Helm \& Kubernetes Deployment](#️-helm--kubernetes-deployment)
-    - [🌐 Networking \& Storage](#-networking--storage)
-    - [💻 OS \& Local Environment](#-os--local-environment)
-  - [Teardown](#teardown)
-
----
-
-## Platform Overview
-
-### Infrastructure
-
-| Component | Details |
-|---|---|
-| **Amazon EKS 1.36** | Managed control plane, `authentication_mode = API_AND_CONFIG_MAP` (both the aws-auth ConfigMap and the newer EKS Access Entries API work) |
-| **VPC** | 2 AZs, public + private subnets, NAT gateway (single for dev/stg, one per AZ for prod) |
-| **EKS Managed Node Group** | Amazon Linux, capacity type and sizing vary per environment |
-| **EKS-managed add-ons** | `vpc-cni`, `coredns`, `kube-proxy`, `aws-ebs-csi-driver`, `metrics-server`, `amazon-cloudwatch-observability` (`modules/eks-addons`) |
-| **AWS Load Balancer Controller + Cluster Autoscaler** | Helm releases applied by Terraform (`environments/<env>/helm.tf`) |
-| **IRSA everywhere** | One scoped IAM role per workload (VPC CNI, EBS CSI, Cluster Autoscaler, Load Balancer Controller, the app, CloudWatch Observability, Grafana's CloudWatch datasource); see `modules/irsa` |
-| **State backend** | S3 + DynamoDB-free — `bootstrap/` is a one-time, local-state root module that creates the S3 bucket used as the backend for every environment |
-
-### Application
-
-| Component | Details |
-|---|---|
-| **`app/expense-tracker-backend`** | The API (Deployment + Service in the Helm chart) |
-| **`app/expense-tracker-frontend`** | The UI (its own Deployment + Service) |
-| **RDS PostgreSQL** | Private, one instance per environment, master password AWS-managed (`modules/rds`) |
-| **S3 app bucket** | Versioned, encrypted, TLS-only bucket policy, holds uploaded receipts (`modules/s3-app-bucket`) |
-| **Secrets Manager** | A placeholder secret per environment for miscellaneous app config (`modules/secrets-manager`); the RDS password lives in its own AWS-managed secret, not this one |
-| **2 ECR repositories per environment** | `expense-platform-backend-<env>` (backend), `expense-platform-frontend-<env>` (frontend) (`modules/ecr`) |
-| **Helm chart** | `helm/expense-tracker`, one release for both services |
-| **CI/CD** | `.github/workflows/build-and-deploy.yml` |
-| **Monitoring** | `monitoring/` (Prometheus + Grafana + CloudWatch datasource) |
+- [Architecture Design](#architecture-design)
+- [Application Design](#application-design)
+- [Networking Design](#networking-design)
+- [Data Flow](#data-flow)
+- [Setup & Deployment](#setup--deployment)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Security](#security)
+- [Observability](#observability)
+- [Known Gaps](#known-gaps)
+- [Troubleshooting](#troubleshooting)
+- [Teardown](#teardown)
 
 ---
 
 ## Architecture Design
+
+### Core Components
+
+| Component | Detail |
+|---|---|
+| **Amazon EKS 1.36** | Managed control plane, `API_AND_CONFIG_MAP` auth mode |
+| **VPC** | 2 AZs, public + private subnets, NAT gateway (per-environment strategy) |
+| **EKS Managed Node Group** | Amazon Linux, capacity/sizing per environment |
+| **`app/expense-tracker-backend`** | Node.js + Express API |
+| **`app/expense-tracker-frontend`** | React + Vite UI, nginx-served |
+| **RDS PostgreSQL** | Private, one instance per environment, AWS-managed master password |
+| **S3 app bucket** | Versioned, encrypted, TLS-only, holds uploaded receipts |
+| **2 ECR repositories per environment** | `expense-platform-backend-<env>`, `expense-platform-frontend-<env>` |
+| **Helm chart** | `helm/expense-tracker`, one release for both services |
+| **CI/CD** | `.github/workflows/build-and-deploy.yml` |
+| **Monitoring** | `monitoring/` (Prometheus + Grafana + CloudWatch datasource) |
 
 This is a 3-tier application, split across two tools by design — not a gap, just where each tier
 is deployed from:
@@ -147,6 +104,23 @@ graph LR
   `terraform-aws-modules/vpc/aws` and `terraform-aws-modules/eks/aws` registry modules.
 - **`environments/{dev,stg,prod}/`** — one root module per environment; identical files, different
   `terraform.tfvars` (CIDR, NAT strategy, node/RDS sizing, log retention).
+
+### Environments
+
+| | dev | stg | prod |
+|---|---|---|---|
+| NAT gateway | single | single | one per AZ |
+| Node capacity type | SPOT | ON_DEMAND | ON_DEMAND |
+| Node group size (min/max/desired) | 1/3/2 | 2/4/2 | 3/10/4 |
+| RDS instance class | `db.t3.micro` | `db.t3.small` | `db.r6g.large` |
+| RDS storage (start → max) | 20 → 50 GiB | 20 → 50 GiB | 100 → 500 GiB |
+| RDS Multi-AZ | no | no | yes |
+| RDS deletion protection | no | no | yes |
+| Log retention | 7 days | 14 days | 90 days |
+| Frontend/backend replicas | 1 / 1 (fixed) | 2–4 (HPA) | 3–6 (HPA) |
+
+Only `dev` has been deployed and verified end-to-end so far; `stg`/`prod` are defined but not yet
+applied.
 
 ---
 
@@ -367,7 +341,9 @@ Grafana (CloudWatch datasource, via IRSA — module.irsa_grafana_cloudwatch)
 
 ---
 
-## Project Structure
+## Setup & Deployment
+
+### Project Structure
 
 ```
 DevOps-Projects/
@@ -396,9 +372,7 @@ DevOps-Projects/
 └── monitoring/                      # Prometheus + Grafana (manually helm-installed)
 ```
 
----
-
-## Prerequisites
+### Prerequisites
 
 | Tool | Notes |
 |---|---|
@@ -409,8 +383,6 @@ DevOps-Projects/
 | Docker | for local image builds |
 | Node.js | 20+ (matches the app's runtime and CI) |
 | Git | GPG signing configured if you want verified commits |
-
-## Setup & Deployment
 
 ### 1. Bootstrap remote state (once per AWS account)
 
@@ -485,47 +457,109 @@ Triggers: push to `main` deploys to `dev` automatically; `workflow_dispatch` let
 IAM user (`modules/ci-deployer`) via GitHub Environment secrets — no shared or long-lived
 cross-environment credentials.
 
-## Monitoring
+## Security
 
-Prometheus + Grafana (`kube-prometheus-stack`, manually `helm install`ed — see
-[`monitoring/README.md`](monitoring/README.md)) cover both platform metrics (nodes, pods,
-deployments — built-in dashboards) and application metrics (`app/expense-tracker-backend`'s `/metrics`
-endpoint, scraped via a `ServiceMonitor`, visualized in a custom dashboard). Grafana also has
-CloudWatch wired in as a second datasource (its own IRSA role, `module.irsa_grafana_cloudwatch`),
-so CloudWatch log groups and metrics are viewable in the same place.
+Security is applied per layer, from the CI credential down to the running pod.
+
+| Layer | Control |
+|---|---|
+| **CI/CD Credentials** | GitHub Actions authenticates via a static, per-environment IAM-user access key (`modules/ci-deployer`) stored as GitHub Environment secrets — no OIDC federation configured yet |
+| **IAM / IRSA** | Least-privilege per workload: `irsa_vpc_cni`, `irsa_ebs_csi`, `irsa_cluster_autoscaler`, `irsa_lb_controller`, `irsa_cloudwatch_observability` (all `kube-system`), `irsa_app` (Secrets Manager + S3, scoped to the app namespace), `irsa_grafana_cloudwatch` (read-only CloudWatch, `monitoring` namespace) |
+| **CI EKS Access** | `ci-deployer`'s EKS access entry is namespace-scoped (`AmazonEKSEditPolicy` restricted to `expense-tracker-<env>`) — it cannot create namespaces or reach `monitoring` or any cluster-scoped resource |
+| **Secrets** | No External Secrets Operator — the backend fetches directly from Secrets Manager via the AWS SDK at boot (`src/secrets.js`); the RDS master password is AWS-managed (`manage_master_user_password = true`) and never touches Terraform state |
+| **Container Runtime** | Backend image runs as a non-root user (`USER app`, Alpine-based) |
+| **Network** | RDS security group accepts inbound only from the EKS node security group, on `5432` — nothing else in or outside the VPC can reach it |
+| **Data at Rest** | RDS, S3, ECR, and Secrets Manager each use their default AWS-managed encryption |
+| **Data in Transit** | The backend's `pg` client connects over TLS; the S3 bucket policy denies any non-TLS request |
+| **Image Integrity** | Both ECR repositories use `IMMUTABLE` tags with scan-on-push enabled |
+| **Availability** | RDS Multi-AZ is configurable per environment (on in prod); the EKS node group spans both AZs |
+| **CI Security Gates** | `npm test` runs before every build/push/deploy |
 
 ---
 
-## Environments
+## Observability
 
-| | dev | stg | prod |
-|---|---|---|---|
-| NAT gateway | single | single | one per AZ |
-| Node capacity type | SPOT | ON_DEMAND | ON_DEMAND |
-| Node group size (min/max/desired) | 1/3/2 | 2/4/2 | 3/10/4 |
-| RDS instance class | `db.t3.micro` | `db.t3.small` | `db.r6g.large` |
-| RDS storage (start → max) | 20 → 50 GiB | 20 → 50 GiB | 100 → 500 GiB |
-| RDS Multi-AZ | no | no | yes |
-| RDS deletion protection | no | no | yes |
-| Log retention | 7 days | 14 days | 90 days |
-| Frontend/backend replicas | 1 / 1 (fixed) | 2–4 (HPA) | 3–6 (HPA) |
+Metrics live in a separate `monitoring` namespace, applied manually by a cluster admin
+(`helm install`) rather than by CI/CD. This mirrors the same boundary enforced in
+[Security](#security): `ci-deployer`'s EKS access is scoped to the app namespace only and cannot
+reach `monitoring` or any cluster-scoped resource.
 
-Only `dev` has been deployed and verified end-to-end so far; `stg`/`prod` are defined but not yet
-applied.
+```mermaid
+flowchart TB
+    subgraph EKS["EKS Cluster"]
+        subgraph APP["expense-tracker-dev — CI/CD-managed"]
+            BE["backend pods<br/>/metrics"]
+            FE["frontend pods"]
+        end
+        subgraph MON["monitoring — admin-applied only"]
+            Prom["Prometheus<br/>15s scrape interval"]
+            Graf["Grafana<br/>(own ALB)"]
+        end
+    end
 
-## Security
+    CW[("Amazon CloudWatch<br/>EKS control-plane/node logs")]
 
-- **IRSA everywhere** — every AWS-facing workload (VPC CNI, EBS CSI, Cluster Autoscaler, Load
-  Balancer Controller, the app, CloudWatch Observability, Grafana) assumes a scoped IAM role via
-  its Kubernetes service account. No pod carries static AWS credentials.
-- **Least-privilege CI identity** — `modules/ci-deployer` creates one IAM user per environment,
-  scoped to that environment's two ECR repos and a namespace-scoped EKS Access Entry
-  (`AmazonEKSEditPolicy` restricted to `expense-tracker-<env>` only — it cannot create namespaces
-  or touch cluster-scoped resources).
-- **RDS password never touches Terraform** — `manage_master_user_password = true` lets AWS create
-  and rotate it directly in Secrets Manager.
-- **TLS-only S3 bucket policies** on both the state bucket and the app bucket.
-- **GPG-signed commits** on this repo.
+    Prom -- "scrape :http/metrics (ServiceMonitor)" --> BE
+    Prom -- "node-exporter / kube-state-metrics" --> EKS
+    Graf -- "PromQL queries" --> Prom
+    Graf -- "GetMetricData/GetLogEvents (IRSA)" --> CW
+```
+
+### Grafana Dashboards
+
+| Dashboard | Metrics Covered |
+|---|---|
+| **Platform (built-in)** | Node CPU/memory, pod counts/restarts, cluster resource usage — from the chart's bundled node-exporter + kube-state-metrics |
+| **Application (custom)** | Backend request rate, latency, and error metrics from `/metrics` (`prom-client`) — auto-imported via a sidecar-watched ConfigMap (`expense-tracker-app-dashboard-configmap.yaml`) |
+
+### Prometheus Scrape Targets
+
+| Job | Target | Metrics |
+|---|---|---|
+| Built-in (chart-managed) | kubelet / cAdvisor / kube-state-metrics | Node and cluster-wide resource metrics |
+| `expense-tracker` | Backend Service, port `http`, path `/metrics`, every 15s (`servicemonitor-expense-tracker.yaml`) | HTTP request rate, latency, custom app metrics |
+
+### Grafana Access
+
+| | |
+|---|---|
+| **URL** | `kubectl get ingress -n monitoring` (own ALB, separate from the app's) |
+| **Username** | `admin` |
+| **Password** | Auto-generated by the chart into the `kube-prometheus-stack-grafana` Secret — never stored in this repo |
+
+```bash
+kubectl get secret -n monitoring kube-prometheus-stack-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 -d
+```
+
+CloudWatch is wired in as a second Grafana datasource via `irsa_grafana_cloudwatch`, surfacing
+EKS control-plane/node-group log groups and metrics alongside Prometheus data in the same instance.
+
+### Installing the Monitoring Stack
+
+Applied once by a cluster admin, never by CI/CD — see
+[`monitoring/README.md`](monitoring/README.md) for the full sequence:
+
+```bash
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  -n monitoring -f monitoring/kube-prometheus-stack-values.yaml
+kubectl apply -f monitoring/servicemonitor-expense-tracker.yaml
+kubectl apply -f monitoring/dashboards/expense-tracker-app-dashboard-configmap.yaml
+```
+
+---
+
+## Known Gaps
+
+| Gap | Reason | Resolution Path |
+|---|---|---|
+| **OIDC federation for CI** | A static per-environment IAM-user access key was faster to stand up for a single-account project | Migrate `modules/ci-deployer` to an OIDC provider + `sts:AssumeRoleWithWebIdentity` trust policy, drop the long-lived key |
+| **Kubernetes NetworkPolicies** | Single app namespace with only backend/frontend talking to each other; the RDS/S3 boundary is already enforced at the security-group layer | Add default-deny `NetworkPolicy` resources per namespace once more services are introduced |
+| **Frontend container hardening** | The stock nginx image needs a writable path by default without extra config | Add a `securityContext` (non-root UID, read-only root FS, dropped capabilities) once a compatible nginx config is in place |
+| **Shared customer-managed KMS key** | Default AWS-managed encryption meets the baseline for a dev environment | Add a `modules/kms` key and reference its ARN from RDS/S3/ECR/Secrets Manager |
+| **CI security scanning gates** | Not yet wired in | Add `npm audit`, Trivy (image scan), and Checkov (Terraform) steps to `build-and-deploy.yml` |
+| **`PodDisruptionBudget`** | Dev runs single replicas, where a PDB is a no-op | Add one per Deployment once stg/prod (2+ replicas) are actually applied |
+| **RDS TLS certificate validation** | `rejectUnauthorized: false` was set to unblock the RDS-managed cert chain during initial setup | Bundle the RDS CA cert and set `rejectUnauthorized: true` in `src/db.js` |
 
 ---
 
@@ -533,65 +567,17 @@ applied.
 
 Real issues hit (and fixed) while building this out:
 
-### 🛠️ EKS & AWS Provider Issues
-
-**1. EKS Add-on Error (`Unsupported argument: most_recent`)**
-The Problem: The `aws_eks_addon` resource does not support the `most_recent` argument in your current AWS provider version.
-
-The Fix: Delete the `addon_version` line entirely from your code to automatically use the default version.
-
-**2. RDS Security Group Error (`Invalid for_each argument`)**
-The Problem: `for_each` requires keys to be known before deployment (at plan time), but the EKS node security group ID is only generated after the cluster is created.
-
-The Fix: Switch from `for_each` to `count = length(var.allowed_security_group_ids)`. Terraform only needs to know the length of the list at plan time.
-
-**3. VPC-CNI Pods Crash-Looping (`Unauthorized operation`)**
-The Problem: Pods are crashing because the EKS IAM submodule generated a blank policy lacking the necessary EC2 network permissions.
-
-The Fix: Explicitly set `vpc_cni_enable_ipv4 = true` in the submodule.
-
-**4. Cluster Autoscaler Policy Error (`coalescelist`)**
-The Problem: The IAM policy generation failed because a required variable was missing.
-
-The Fix: Ensure you populate the `cluster_autoscaler_cluster_names` variable when setting `attach_cluster_autoscaler_policy = true`.
-
-### ☸️ Helm & Kubernetes Deployment
-
-**5. Helm Permission Error (`namespaces is forbidden`)**
-The Problem: The CI/CD pipeline's access is restricted to a single namespace, so it lacks the cluster-wide permissions required to run `helm install --create-namespace`.
-
-The Fix: Have Terraform (which has cluster-admin rights) create the namespace beforehand, and remove the `--create-namespace` flag from your CI pipeline.
-
-**6. Migration Job Failure (`Invalid value: ... spec.template`)**
-The Problem: Kubernetes Job templates are immutable. Every time a new deployment changes the image
-tag, Helm tries to update the existing Job in place, causing a crash.
-
-The Fix: Turn the Job into a Helm hook using the annotation `hook-delete-policy:
-before-hook-creation`. This forces Helm to delete the old Job and create a fresh one on every
-deploy.
-
-### 🌐 Networking & Storage
-
-**7. App Unreachable / Unhealthy ALB Targets**
-The Problem: The AWS Load Balancer (ALB) health check defaults to `/`, but the application returned a `404` at that root path, marking the pods unhealthy. Additionally, a shared frontend
-config inherited this broken default.
-The Fix:
-1. Add the annotation `alb.ingress.kubernetes.io/healthcheck-path: /healthz` to point to a valid
-   health endpoint.
-2. Add a matching `/healthz` stub to the frontend's Nginx configuration so it returns a `200 OK`.
-
-**8. PVCs Stuck Pending (Prometheus/Grafana)**
-The Problem: The legacy `gp2` StorageClass uses an old AWS EBS plugin that is no longer supported
-in newer EKS versions.
-The Fix: Deploy and switch to a modern, CSI-driver-backed `gp3` StorageClass.
-
-### 💻 OS & Local Environment
-
-**9. Git Bash Path Corruption (`/healthz` becomes `C:/Program Files/...`)**
-The Problem: When running `kubectl` on Windows via Git Bash, the terminal automatically converts
-forward slashes into Windows file paths.
-The Fix: Prefix your command or set your environment variable with `MSYS_NO_PATHCONV=1` to disable
-automatic path conversion.
+| Problem | Fix |
+|---|---|
+| EKS add-on error: `Unsupported argument: most_recent` | Delete the `addon_version` line to use the default version |
+| RDS security group error: `Invalid for_each argument` | Switch from `for_each` to `count = length(...)` — the node SG ID isn't known until after cluster creation |
+| VPC-CNI pods crash-looping (`Unauthorized operation`) | Set `vpc_cni_enable_ipv4 = true` in the EKS submodule |
+| Cluster Autoscaler IAM policy error (`coalescelist`) | Populate `cluster_autoscaler_cluster_names` when `attach_cluster_autoscaler_policy = true` |
+| Helm permission error (`namespaces is forbidden`) | Let Terraform create the namespace; drop `--create-namespace` from CI |
+| Migration Job failure (`Invalid value: ... spec.template`) | Use `hook-delete-policy: before-hook-creation` so Helm deletes and recreates the Job each deploy |
+| App unreachable / unhealthy ALB targets | Add `alb.ingress.kubernetes.io/healthcheck-path: /healthz`; add a matching `/healthz` stub to nginx |
+| PVCs stuck Pending (Prometheus/Grafana) | Switch from the legacy `gp2` StorageClass to a CSI-driver-backed `gp3` one |
+| Git Bash path corruption (`/healthz` → `C:/Program Files/...`) | Prefix commands with `MSYS_NO_PATHCONV=1` |
 
 ---
 
