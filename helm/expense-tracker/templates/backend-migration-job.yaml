@@ -27,4 +27,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "expense-tracker.name" . }}-config
+            - secretRef:
+                name: {{ include "expense-tracker.name" . }}-db-credentials
 {{- end }}
