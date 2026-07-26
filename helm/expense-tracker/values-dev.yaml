@@ -10,7 +10,7 @@ config:
   dbHost: "expense-platform-dev-db.cots7ubp4aji.us-east-1.rds.amazonaws.com"
   dbPort: "5432"
   dbName: "expenses"
-  dbSecretArn: "arn:aws:secretsmanager:us-east-1:395675597879:secret:rds!db-64f9b6ab-e59f-409a-9792-d252171bd3f6-s2wgqe"
+  dbSecretArn: "arn:aws:secretsmanager:us-east-1:395675597879:secret:rds!db-97dc4ac3-0cad-4501-a153-a52f00ea656c-6MrW9D"
   s3Bucket: "expense-platform-app-dev-395675597879"
   awsRegion: "us-east-1"
   appEnv: "dev"
