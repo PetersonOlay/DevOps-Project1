@@ -471,7 +471,7 @@ Security is applied per layer, from the CI credential down to the running pod.
 |---|---|
 | **CI/CD Credentials** | GitHub Actions authenticates via a static, per-environment IAM-user access key (`modules/ci-deployer`) stored as GitHub Environment secrets — no OIDC federation configured yet |
 | **IAM / IRSA** | Least-privilege per workload: `irsa_vpc_cni`, `irsa_ebs_csi`, `irsa_cluster_autoscaler`, `irsa_lb_controller`, `irsa_cloudwatch_observability` (all `kube-system`), `irsa_app` (Secrets Manager + S3, scoped to the app namespace), `irsa_grafana_cloudwatch` (read-only CloudWatch, `monitoring` namespace) |
-| **CI EKS Access** | `ci-deployer`'s EKS access entry is namespace-scoped (`AmazonEKSEditPolicy` restricted to `expense-tracker-<env>`) — it cannot create namespaces or reach `monitoring` or any cluster-scoped resource |
+| **CI EKS Access** | `ci-deployer`'s EKS access entry is namespace-scoped (`AmazonEKSEditPolicy` restricted to `expense-tracker-<env>`) — it cannot create namespaces or reach `monitoring` or any cluster-scoped resource. A supplementary namespace-scoped `Role`/`RoleBinding` grants it CRUD on `external-secrets.io` resources, since that fixed AWS policy doesn't extend to CRDs |
 | **Secrets** | External Secrets Operator syncs the RDS-managed Secrets Manager secret into a Kubernetes Secret via a `SecretStore` authenticated as the app's own IRSA role (no standing AWS access on the shared ESO controller); the app reads `DB_USERNAME`/`DB_PASSWORD` from that Secret, never calling the AWS SDK itself. The RDS master password is AWS-managed (`manage_master_user_password = true`) and never touches Terraform state |
 | **Container Runtime** | Backend image runs as a non-root user (`USER app`, Alpine-based) |
 | **Network** | RDS security group accepts inbound only from the EKS node security group, on `5432` — nothing else in or outside the VPC can reach it |
@@ -592,6 +592,8 @@ Real issues hit (and fixed) while building this out:
 | App unreachable / unhealthy ALB targets | Add `alb.ingress.kubernetes.io/healthcheck-path: /healthz`; add a matching `/healthz` stub to nginx |
 | PVCs stuck Pending (Prometheus/Grafana) | Switch from the legacy `gp2` StorageClass to a CSI-driver-backed `gp3` one |
 | Git Bash path corruption (`/healthz` → `C:/Program Files/...`) | Prefix commands with `MSYS_NO_PATHCONV=1` |
+| `helm upgrade` in CI forbidden on `externalsecrets`/`secretstores` | `AmazonEKSEditPolicy` is a fixed AWS-managed policy that doesn't pick up Kubernetes RBAC aggregation labels for new CRDs — add an explicit namespace-scoped `Role`/`RoleBinding` granting `ci-deployer` access |
+| ExternalSecret synced but migration Job still failed (`no PostgreSQL user name specified`) | The migration Job has its own pod spec, separate from the Deployment — its `envFrom` also needs the `secretRef`, not just the ConfigMap |
 
 ---
 
