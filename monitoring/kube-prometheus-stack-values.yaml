@@ -30,13 +30,9 @@ grafana:
   # (kube-prometheus-stack-grafana) — see monitoring/README.md to retrieve it.
 
   # IRSA role scoped to read-only CloudWatch Logs/Metrics access (see
-  # environments/dev/main.tf: module.irsa_grafana_cloudwatch). Annotating the
-  # chart-managed service account here (rather than patching it after the
-  # fact) means it's present from pod creation, which IRSA's mutating webhook
-  # requires to inject credentials.
-  serviceAccount:
-    annotations:
-      eks.amazonaws.com/role-arn: "arn:aws:iam::395675597879:role/expense-platform-dev-grafana-cloudwatch"
+  # environments/<env>/main.tf: module.irsa_grafana_cloudwatch). The role ARN
+  # is per-environment, so it's set in the matching
+  # kube-prometheus-stack-values-<env>.yaml overlay, not here.
 
   additionalDataSources:
     - name: CloudWatch

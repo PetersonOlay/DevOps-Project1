@@ -1,0 +1,208 @@
+# Custom Grafana dashboard, auto-imported by the chart's sidecar (it watches
+# for ConfigMaps labeled grafana_dashboard: "1"). Queries the CloudWatch
+# datasource (additionalDataSources in kube-prometheus-stack-values.yaml),
+# not Prometheus.
+#
+# The "Load Balancer" dropdown lists every ALB CloudWatch is aware of in this
+# account/region — that includes both the app's ALB (helm/expense-tracker's
+# Ingress) and Grafana's own ALB (this chart's Ingress), since neither has a
+# pinned alb.ingress.kubernetes.io/load-balancer-name annotation and the AWS
+# Load Balancer Controller auto-generates their names. Pick the app's ALB for
+# the request/error-rate panels. Same file works unmodified for dev/stg/prod
+# — each environment is a separate cluster/Grafana instance, so the dropdown
+# only ever lists what actually exists in that account at view time.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudwatch-infra-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  cloudwatch-infra.json: |
+    {
+      "title": "Infrastructure (CloudWatch): RDS & ALB",
+      "uid": "cloudwatch-infra",
+      "schemaVersion": 39,
+      "version": 1,
+      "timezone": "browser",
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "1m",
+      "templating": {
+        "list": [
+          {
+            "name": "db_instance",
+            "label": "RDS Instance",
+            "type": "query",
+            "datasource": "CloudWatch",
+            "query": "dimension_values(us-east-1,AWS/RDS,CPUUtilization,DBInstanceIdentifier)",
+            "refresh": 2
+          },
+          {
+            "name": "loadbalancer",
+            "label": "Load Balancer",
+            "type": "query",
+            "datasource": "CloudWatch",
+            "query": "dimension_values(us-east-1,AWS/ApplicationELB,RequestCount,LoadBalancer)",
+            "refresh": 2
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "RDS CPU Utilization",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "CPUUtilization",
+              "dimensions": { "DBInstanceIdentifier": "$db_instance" },
+              "statistic": "Average",
+              "region": "us-east-1"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "RDS Database Connections",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "DatabaseConnections",
+              "dimensions": { "DBInstanceIdentifier": "$db_instance" },
+              "statistic": "Average",
+              "region": "us-east-1"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "RDS Free Storage Space",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "FreeStorageSpace",
+              "dimensions": { "DBInstanceIdentifier": "$db_instance" },
+              "statistic": "Average",
+              "region": "us-east-1"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "RDS Read / Write Latency",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "ReadLatency",
+              "dimensions": { "DBInstanceIdentifier": "$db_instance" },
+              "statistic": "Average",
+              "region": "us-east-1",
+              "legendFormat": "read"
+            },
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "WriteLatency",
+              "dimensions": { "DBInstanceIdentifier": "$db_instance" },
+              "statistic": "Average",
+              "region": "us-east-1",
+              "legendFormat": "write"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "ALB Request Count",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "RequestCount",
+              "dimensions": { "LoadBalancer": "$loadbalancer" },
+              "statistic": "Sum",
+              "region": "us-east-1"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "ALB 4xx / 5xx Errors",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "HTTPCode_ELB_4XX_Count",
+              "dimensions": { "LoadBalancer": "$loadbalancer" },
+              "statistic": "Sum",
+              "region": "us-east-1",
+              "legendFormat": "4xx"
+            },
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "HTTPCode_ELB_5XX_Count",
+              "dimensions": { "LoadBalancer": "$loadbalancer" },
+              "statistic": "Sum",
+              "region": "us-east-1",
+              "legendFormat": "5xx"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "ALB Target Response Time (p99)",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "targets": [
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "TargetResponseTime",
+              "dimensions": { "LoadBalancer": "$loadbalancer" },
+              "statistic": "p99",
+              "region": "us-east-1"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "ALB Healthy / Unhealthy Host Count",
+          "type": "timeseries",
+          "datasource": "CloudWatch",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "HealthyHostCount",
+              "dimensions": { "LoadBalancer": "$loadbalancer" },
+              "statistic": "Average",
+              "region": "us-east-1",
+              "legendFormat": "healthy"
+            },
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "UnHealthyHostCount",
+              "dimensions": { "LoadBalancer": "$loadbalancer" },
+              "statistic": "Average",
+              "region": "us-east-1",
+              "legendFormat": "unhealthy"
+            }
+          ]
+        }
+      ]
+    }

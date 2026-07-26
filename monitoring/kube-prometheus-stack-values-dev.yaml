@@ -1,0 +1,6 @@
+# dev-environment overlay for kube-prometheus-stack-values.yaml.
+# Role ARN comes from: terraform -chdir=environments/dev output -raw irsa_grafana_cloudwatch_role_arn
+grafana:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::395675597879:role/expense-platform-dev-grafana-cloudwatch"

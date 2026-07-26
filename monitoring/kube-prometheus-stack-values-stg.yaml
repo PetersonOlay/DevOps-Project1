@@ -1,0 +1,6 @@
+# stg-environment overlay for kube-prometheus-stack-values.yaml.
+# Role ARN comes from: terraform -chdir=environments/stg output -raw irsa_grafana_cloudwatch_role_arn
+grafana:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "REPLACE_WITH_irsa_grafana_cloudwatch_role_arn"

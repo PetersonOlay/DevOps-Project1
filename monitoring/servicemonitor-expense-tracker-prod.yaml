@@ -1,0 +1,19 @@
+# Tells Prometheus Operator to scrape the backend's /metrics endpoint.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: expense-tracker
+  namespace: expense-tracker-prod
+  labels:
+    app: expense-tracker
+spec:
+  namespaceSelector:
+    matchNames:
+      - expense-tracker-prod
+  selector:
+    matchLabels:
+      app: expense-tracker-prod
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

@@ -511,13 +511,14 @@ flowchart TB
 |---|---|
 | **Platform (built-in)** | Node CPU/memory, pod counts/restarts, cluster resource usage — from the chart's bundled node-exporter + kube-state-metrics |
 | **Application (custom)** | Backend request rate, latency, and error metrics from `/metrics` (`prom-client`) — auto-imported via a sidecar-watched ConfigMap (`expense-tracker-app-dashboard-configmap.yaml`) |
+| **Infrastructure (CloudWatch)** | RDS CPU/connections/storage/latency, ALB request count, 4xx/5xx errors, p99 response time, healthy/unhealthy host count — via `db_instance`/`loadbalancer` dropdown variables, not a fixed target (`cloudwatch-infra-dashboard-configmap.yaml`) |
 
 ### Prometheus Scrape Targets
 
 | Job | Target | Metrics |
 |---|---|---|
 | Built-in (chart-managed) | kubelet / cAdvisor / kube-state-metrics | Node and cluster-wide resource metrics |
-| `expense-tracker` | Backend Service, port `http`, path `/metrics`, every 15s (`servicemonitor-expense-tracker.yaml`) | HTTP request rate, latency, custom app metrics |
+| `expense-tracker` | Backend Service, port `http`, path `/metrics`, every 15s (`servicemonitor-expense-tracker-<env>.yaml`) | HTTP request rate, latency, custom app metrics |
 
 ### Grafana Access
 
@@ -537,14 +538,20 @@ EKS control-plane/node-group log groups and metrics alongside Prometheus data in
 
 ### Installing the Monitoring Stack
 
-Applied once by a cluster admin, never by CI/CD — see
+Applied once per cluster by a cluster admin, never by CI/CD — same `values.yaml` +
+`values-<env>.yaml` layering as the Helm chart. See
 [`monitoring/README.md`](monitoring/README.md) for the full sequence:
 
 ```bash
+ENV=dev   # or stg / prod — must match the cluster kubectl is currently pointed at
+
 helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-  -n monitoring -f monitoring/kube-prometheus-stack-values.yaml
-kubectl apply -f monitoring/servicemonitor-expense-tracker.yaml
+  -n monitoring \
+  -f monitoring/kube-prometheus-stack-values.yaml \
+  -f monitoring/kube-prometheus-stack-values-$ENV.yaml
+kubectl apply -f monitoring/servicemonitor-expense-tracker-$ENV.yaml
 kubectl apply -f monitoring/dashboards/expense-tracker-app-dashboard-configmap.yaml
+kubectl apply -f monitoring/dashboards/cloudwatch-infra-dashboard-configmap.yaml
 ```
 
 ---
