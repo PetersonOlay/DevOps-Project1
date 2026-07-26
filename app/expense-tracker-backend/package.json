@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
-    "@aws-sdk/client-secrets-manager": "^3.600.0",
     "@aws-sdk/s3-request-presigner": "^3.600.0",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",

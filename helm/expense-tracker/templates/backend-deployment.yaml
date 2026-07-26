@@ -29,6 +29,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "expense-tracker.name" . }}-config
+            - secretRef:
+                name: {{ include "expense-tracker.name" . }}-db-credentials
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           readinessProbe:

@@ -189,7 +189,7 @@ module "irsa_app" {
     Statement = [
       {
         Effect = "Allow"
-        Action = ["secretsmanager:GetSecretValue"]
+        Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
         Resource = [
           module.app_secret.secret_arn,
           module.rds.master_user_secret_arn,

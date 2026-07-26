@@ -9,15 +9,17 @@ Node.js/Express API storing expense records in RDS Postgres and receipt files in
 | `DB_HOST`       | RDS endpoint (address only, no port)                       |
 | `DB_PORT`       | RDS port, usually `5432`                                    |
 | `DB_NAME`       | Database name                                                |
-| `DB_SECRET_ARN` | Secrets Manager ARN of the RDS-managed master credentials    |
+| `DB_USERNAME`   | RDS master username, synced from Secrets Manager by External Secrets Operator |
+| `DB_PASSWORD`   | RDS master password, synced from Secrets Manager by External Secrets Operator |
 | `S3_BUCKET`     | App S3 bucket name                                            |
 | `AWS_REGION`    | AWS region                                                     |
 | `APP_ENV`       | Environment name, used as an S3 key prefix (`dev`/`stg`/`prod`) |
 | `PORT`          | HTTP port, default `3000`                                     |
 
-Credentials are never passed as env vars: the app fetches the DB password from Secrets Manager
-and talks to S3 using the pod's IRSA role, both at runtime via the AWS SDK's default credential
-chain.
+`DB_USERNAME`/`DB_PASSWORD` come from a Kubernetes Secret that External Secrets Operator syncs
+from the RDS-managed Secrets Manager secret (see `helm/expense-tracker/templates/backend-secretstore.yaml`
+and `backend-externalsecret.yaml`) — the app never calls the AWS SDK for this itself. S3 access
+still goes through the pod's IRSA role via the AWS SDK's default credential chain.
 
 ## Endpoints
 
@@ -33,13 +35,13 @@ chain.
 
 ```
 npm install
-export DB_HOST=localhost DB_PORT=5432 DB_NAME=expenses DB_SECRET_ARN=... S3_BUCKET=... AWS_REGION=us-east-1
+export DB_HOST=localhost DB_PORT=5432 DB_NAME=expenses DB_USERNAME=... DB_PASSWORD=... S3_BUCKET=... AWS_REGION=us-east-1
 npm run migrate
 npm start
 ```
 
-(Requires AWS credentials in your environment for the Secrets Manager/S3 calls, or a local
-Postgres + stub for offline testing.)
+(Requires AWS credentials in your environment for the S3 calls, or a local Postgres + stub for
+offline testing.)
 
 ## Build & push to ECR
 

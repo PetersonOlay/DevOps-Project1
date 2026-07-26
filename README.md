@@ -298,14 +298,20 @@ helm upgrade --install
 ```
 AWS Secrets Manager
   |  rds!db-<generated>                  (RDS-managed)  — { username, password }
-  |  <env>/app/placeholder               (Terraform)    — misc app config
   ▼
-Backend Pod (IRSA role: expense-platform-<env>-app)
-  |  AWS SDK v3 GetSecretValue at boot (src/secrets.js) — no static credentials
-  |  no External Secrets Operator, no Kubernetes Secret object involved
+External Secrets Operator (helm-installed, terraform-managed release)
+  |  SecretStore (backend-secretstore.yaml) — auth via serviceAccountRef,
+  |  reusing the app's own IRSA role (expense-platform-<env>-app), no
+  |  standing AWS permissions on the shared ESO controller itself
+  |  ExternalSecret (backend-externalsecret.yaml) — polls every
+  |  externalSecrets.refreshInterval (default 1m)
   ▼
-In-memory DB credentials
-  └─▶ pg connection pool (src/db.js)
+Kubernetes Secret (expense-tracker-<env>-db-credentials)
+  ▼
+Backend Pod
+  |  envFrom secretRef — DB_USERNAME / DB_PASSWORD set at container start
+  ▼
+pg connection pool (src/db.js)
 ```
 
 ### Metrics & Logs Flow
@@ -466,7 +472,7 @@ Security is applied per layer, from the CI credential down to the running pod.
 | **CI/CD Credentials** | GitHub Actions authenticates via a static, per-environment IAM-user access key (`modules/ci-deployer`) stored as GitHub Environment secrets — no OIDC federation configured yet |
 | **IAM / IRSA** | Least-privilege per workload: `irsa_vpc_cni`, `irsa_ebs_csi`, `irsa_cluster_autoscaler`, `irsa_lb_controller`, `irsa_cloudwatch_observability` (all `kube-system`), `irsa_app` (Secrets Manager + S3, scoped to the app namespace), `irsa_grafana_cloudwatch` (read-only CloudWatch, `monitoring` namespace) |
 | **CI EKS Access** | `ci-deployer`'s EKS access entry is namespace-scoped (`AmazonEKSEditPolicy` restricted to `expense-tracker-<env>`) — it cannot create namespaces or reach `monitoring` or any cluster-scoped resource |
-| **Secrets** | No External Secrets Operator — the backend fetches directly from Secrets Manager via the AWS SDK at boot (`src/secrets.js`); the RDS master password is AWS-managed (`manage_master_user_password = true`) and never touches Terraform state |
+| **Secrets** | External Secrets Operator syncs the RDS-managed Secrets Manager secret into a Kubernetes Secret via a `SecretStore` authenticated as the app's own IRSA role (no standing AWS access on the shared ESO controller); the app reads `DB_USERNAME`/`DB_PASSWORD` from that Secret, never calling the AWS SDK itself. The RDS master password is AWS-managed (`manage_master_user_password = true`) and never touches Terraform state |
 | **Container Runtime** | Backend image runs as a non-root user (`USER app`, Alpine-based) |
 | **Network** | RDS security group accepts inbound only from the EKS node security group, on `5432` — nothing else in or outside the VPC can reach it |
 | **Data at Rest** | RDS, S3, ECR, and Secrets Manager each use their default AWS-managed encryption |
@@ -567,6 +573,7 @@ kubectl apply -f monitoring/dashboards/cloudwatch-infra-dashboard-configmap.yaml
 | **CI security scanning gates** | Not yet wired in | Add `npm audit`, Trivy (image scan), and Checkov (Terraform) steps to `build-and-deploy.yml` |
 | **`PodDisruptionBudget`** | Dev runs single replicas, where a PDB is a no-op | Add one per Deployment once stg/prod (2+ replicas) are actually applied |
 | **RDS TLS certificate validation** | `rejectUnauthorized: false` was set to unblock the RDS-managed cert chain during initial setup | Bundle the RDS CA cert and set `rejectUnauthorized: true` in `src/db.js` |
+| **DB credential rotation requires a pod restart** | External Secrets Operator refreshes the Kubernetes Secret every `externalSecrets.refreshInterval`, but `DB_USERNAME`/`DB_PASSWORD` are only read into the container's environment at startup | Add a rolling-restart-on-change mechanism (e.g. Stakater Reloader) watching the synced Secret |
 
 ---
 

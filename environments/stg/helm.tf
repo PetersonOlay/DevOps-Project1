@@ -27,6 +27,21 @@ resource "helm_release" "aws_load_balancer_controller" {
   depends_on = [module.eks_addons]
 }
 
+# ESO's own controller carries no AWS permissions of its own — the app's
+# SecretStore (helm/expense-tracker/templates/backend-secretstore.yaml) uses
+# module.irsa_app's existing role via serviceAccountRef instead, so secret
+# access stays scoped to the app namespace rather than a blanket controller
+# credential.
+resource "helm_release" "external_secrets" {
+  name             = "external-secrets"
+  repository       = "https://charts.external-secrets.io"
+  chart            = "external-secrets"
+  namespace        = "external-secrets"
+  create_namespace = true
+
+  depends_on = [module.eks_addons]
+}
+
 resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"
   repository = "https://kubernetes.github.io/autoscaler"

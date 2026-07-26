@@ -20,6 +20,10 @@ config:
   awsRegion: "us-east-1"
   appEnv: "dev"
 
+# ExternalSecret sync interval for DB credentials (backend-externalsecret.yaml).
+externalSecrets:
+  refreshInterval: "1m"
+
 resources:
   requests:
     cpu: 100m

@@ -1,5 +1,4 @@
 const { Pool } = require("pg");
-const { getDbCredentials } = require("./secrets");
 
 let pool;
 
@@ -8,14 +7,12 @@ async function getPool() {
     return pool;
   }
 
-  const { username, password } = await getDbCredentials();
-
   pool = new Pool({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 5432),
     database: process.env.DB_NAME,
-    user: username,
-    password,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
     ssl: { rejectUnauthorized: false },
     max: 5,
   });
