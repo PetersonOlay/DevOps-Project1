@@ -103,6 +103,45 @@ module "ci_deployer" {
   tags = local.common_tags
 }
 
+# AWS's AmazonEKSEditPolicy access policy is a fixed, AWS-managed permission
+# set — it does NOT pick up Kubernetes RBAC aggregation labels (like the
+# external-secrets chart's rbac.authorization.k8s.io/aggregate-to-edit:
+# "true"), so ci_deployer can't manage SecretStore/ExternalSecret via
+# `helm upgrade` without this supplementary, namespace-scoped Role.
+resource "kubernetes_role" "ci_deployer_external_secrets" {
+  metadata {
+    name      = "ci-deployer-external-secrets"
+    namespace = local.app_namespace
+  }
+
+  rule {
+    api_groups = ["external-secrets.io"]
+    resources  = ["secretstores", "externalsecrets"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  depends_on = [kubernetes_namespace.app]
+}
+
+resource "kubernetes_role_binding" "ci_deployer_external_secrets" {
+  metadata {
+    name      = "ci-deployer-external-secrets"
+    namespace = local.app_namespace
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.ci_deployer_external_secrets.metadata[0].name
+  }
+
+  subject {
+    kind      = "User"
+    name      = module.ci_deployer.user_arn
+    api_group = "rbac.authorization.k8s.io"
+  }
+}
+
 module "rds" {
   source = "../../modules/rds"
 
