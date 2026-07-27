@@ -36,7 +36,7 @@ placeholder in `values-<env>.yaml` before installing:
 terraform -chdir=../../environments/dev output
 ```
 
-maps to `image.repository` (`backend_ecr_repository_url`), `frontend.image.repository`
+maps to `backend.image.repository` (`backend_ecr_repository_url`), `frontend.image.repository`
 (`frontend_ecr_repository_url`), `serviceAccount.roleArn` (`irsa_app_role_arn`), `config.dbHost`
 (`rds_endpoint`), `config.dbSecretArn` (`rds_master_user_secret_arn`), and `config.s3Bucket`
 (`app_s3_bucket_name`). `config.dbSecretArn` is consumed by the `ExternalSecret` template, not the

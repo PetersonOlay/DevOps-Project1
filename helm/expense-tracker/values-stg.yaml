@@ -2,9 +2,10 @@
 # REPLACE_WITH_* convention as values-prod.yaml — fill in from Terraform
 # outputs before the first deploy.
 # Fill in from: terraform -chdir=../../environments/stg output
-image:
-  repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
-  tag: "stg"
+backend:
+  image:
+    repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
+    tag: "stg"
 
 replicaCount: 2
 

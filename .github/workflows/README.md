@@ -57,8 +57,8 @@ who can trigger a deployment to them.
 
 ## 3. Fill in the Helm values placeholders
 
-The pipeline only ever bumps `image.tag` and `frontend.image.tag`. Everything else in
-`helm/expense-tracker/values-<env>.yaml` (`image.repository`, `frontend.image.repository`,
+The pipeline only ever bumps `backend.image.tag` and `frontend.image.tag`. Everything else in
+`helm/expense-tracker/values-<env>.yaml` (`backend.image.repository`, `frontend.image.repository`,
 `serviceAccount.roleArn`, `config.dbHost`, `config.dbSecretArn`, `config.s3Bucket`) must be filled
 in once from that environment's `terraform output` before the first deploy — see
 `helm/expense-tracker/README.md`.

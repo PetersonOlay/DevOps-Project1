@@ -1,9 +1,10 @@
 # prod-environment overrides, layered on top of values.yaml. Fill in every
 # REPLACE_WITH_* placeholder from Terraform outputs before the first deploy.
 # Fill in from: terraform -chdir=../../environments/prod output
-image:
-  repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
-  tag: "prod"
+backend:
+  image:
+    repository: "REPLACE_WITH_ECR_REPOSITORY_URL"
+    tag: "prod"
 
 replicaCount: 3
 

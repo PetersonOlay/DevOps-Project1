@@ -423,7 +423,7 @@ Create a matching GitHub Environment (`dev`/`stg`/`prod`) and set its secrets/va
 
 ### 4. Fill in the Helm values
 
-`helm/expense-tracker/values-<env>.yaml` needs the real `image.repository`,
+`helm/expense-tracker/values-<env>.yaml` needs the real `backend.image.repository`,
 `frontend.image.repository`, `serviceAccount.roleArn`, `config.dbHost`, `config.dbSecretArn`, and
 `config.s3Bucket` from the same Terraform outputs — the pipeline only ever bumps image tags, not
 these. See [`helm/expense-tracker/README.md`](helm/expense-tracker/README.md).

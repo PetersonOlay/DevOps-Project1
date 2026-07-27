@@ -1,8 +1,9 @@
-# dev-environment overrides, layered on top of values.yaml. image.tag and
-# frontend.image.tag are bumped automatically by the CI pipeline.
-image:
-  repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/expense-platform-backend-dev"
-  tag: "backend-dev-20260727-010515"
+# dev-environment overrides, layered on top of values.yaml. backend.image.tag
+# and frontend.image.tag are bumped automatically by the CI pipeline.
+backend:
+  image:
+    repository: "395675597879.dkr.ecr.us-east-1.amazonaws.com/expense-platform-backend-dev"
+    tag: "backend-dev-20260727-010515"
 replicaCount: 1
 serviceAccount:
   roleArn: "arn:aws:iam::395675597879:role/expense-platform-dev-app"

@@ -109,7 +109,7 @@ jobs:
         run: |
           VALUES_FILE=helm/expense-tracker/values-${{ github.event.inputs.environment || 'dev' }}.yaml
           yq -i '
-            .image.tag = "${{ needs.build-and-push.outputs.backend_tag }}" |
+            .backend.image.tag = "${{ needs.build-and-push.outputs.backend_tag }}" |
             .frontend.image.tag = "${{ needs.build-and-push.outputs.frontend_tag }}"
           ' "$VALUES_FILE"
 

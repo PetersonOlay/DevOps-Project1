@@ -1,9 +1,10 @@
 # Chart-wide defaults; values-<env>.yaml overrides these per environment.
-# Backend image/config:
-image:
-  repository: ""
-  tag: "latest"
-  pullPolicy: IfNotPresent
+# Backend image:
+backend:
+  image:
+    repository: ""
+    tag: "latest"
+    pullPolicy: IfNotPresent
 
 replicaCount: 1
 
