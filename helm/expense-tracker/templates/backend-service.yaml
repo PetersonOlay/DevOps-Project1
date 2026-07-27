@@ -3,14 +3,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "expense-tracker.name" . }}
+  name: {{ include "expense-tracker.backend.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "expense-tracker.labels" . | nindent 4 }}
+    {{- include "expense-tracker.backend.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    {{- include "expense-tracker.selectorLabels" . | nindent 4 }}
+    {{- include "expense-tracker.backend.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.service.port }}

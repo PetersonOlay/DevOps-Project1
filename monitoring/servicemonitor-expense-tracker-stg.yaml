@@ -12,7 +12,7 @@ spec:
       - expense-tracker-stg
   selector:
     matchLabels:
-      app: expense-tracker-stg
+      app: expense-tracker-stg-backend
   endpoints:
     - port: http
       path: /metrics

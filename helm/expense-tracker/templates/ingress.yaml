@@ -21,14 +21,14 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "expense-tracker.name" . }}
+                name: {{ include "expense-tracker.backend.name" . }}
                 port:
                   number: {{ .Values.service.port }}
           - path: /healthz
             pathType: Prefix
             backend:
               service:
-                name: {{ include "expense-tracker.name" . }}
+                name: {{ include "expense-tracker.backend.name" . }}
                 port:
                   number: {{ .Values.service.port }}
           - path: /

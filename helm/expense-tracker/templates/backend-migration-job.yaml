@@ -2,10 +2,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "expense-tracker.name" . }}-migrate
+  name: {{ include "expense-tracker.backend.name" . }}-migrate
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "expense-tracker.labels" . | nindent 4 }}
+    {{- include "expense-tracker.backend.labels" . | nindent 4 }}
   annotations:
     # Job specs are immutable, so a plain "helm upgrade" (image tag changes
     # every deploy) can't patch this in place. Running it as a post-install/
@@ -17,6 +17,9 @@ metadata:
 spec:
   backoffLimit: 2
   template:
+    metadata:
+      labels:
+        {{- include "expense-tracker.backend.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       restartPolicy: Never
@@ -26,7 +29,7 @@ spec:
           command: ["node", "src/migrate.js"]
           envFrom:
             - configMapRef:
-                name: {{ include "expense-tracker.name" . }}-config
+                name: {{ include "expense-tracker.backend.name" . }}-config
             - secretRef:
-                name: {{ include "expense-tracker.name" . }}-db-credentials
+                name: {{ include "expense-tracker.backend.name" . }}-db-credentials
 {{- end }}

@@ -5,15 +5,15 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "expense-tracker.name" . }}
+  name: {{ include "expense-tracker.backend.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "expense-tracker.labels" . | nindent 4 }}
+    {{- include "expense-tracker.backend.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "expense-tracker.name" . }}
+    name: {{ include "expense-tracker.backend.name" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

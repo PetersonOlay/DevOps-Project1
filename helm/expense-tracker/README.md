@@ -56,9 +56,10 @@ helm install expense-tracker . -n expense-tracker-dev -f values.yaml -f values-d
 helm upgrade expense-tracker . -n expense-tracker-dev -f values.yaml -f values-dev.yaml
 ```
 
-The migration Job (`expense-tracker-<env>-migrate`, e.g. `expense-tracker-dev-migrate` — resource
-names are suffixed with `config.appEnv` so they're identifiable across environments/namespaces at
-a glance) runs as a `post-install,post-upgrade` Helm hook with
+The migration Job (`expense-tracker-<env>-backend-migrate`, e.g.
+`expense-tracker-dev-backend-migrate` — backend resource names are suffixed with `-backend` and
+`config.appEnv` so they're identifiable across services/environments/namespaces at a glance) runs
+as a `post-install,post-upgrade` Helm hook with
 `hook-delete-policy: before-hook-creation` — Helm deletes the previous Job and creates a fresh one
 on every install/upgrade automatically (Job specs are immutable, so a plain in-place patch would
 fail once the image tag changes). No manual cleanup needed between deploys.
